@@ -40,6 +40,7 @@ test("type advantage boosts XP and critical gives none", () => {
   const perf = 1;
   assert.ok(xpAward(orc, "fighter", perf, 1, "victory") > xpAward(orc, "bard", perf, 1, "victory"));
   assert.equal(xpAward(orc, "fighter", perf, 1, "critical"), 0);
+  assert.equal(xpAward(orc, "fighter", perf, 1, "defeat"), 0, "a fast, cheap defeat earns nothing");
 });
 
 test("performance rewards coming in under budget", () => {

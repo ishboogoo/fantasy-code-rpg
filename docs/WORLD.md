@@ -109,7 +109,7 @@ performance = 0.50·correctness + 0.20·quality + 0.20·efficiency + 0.10·speed
 typeBonus   = 1.25 if the character's job is strong vs this enemy, else 1.0
 share       = the character's contribution weight in the party (sums to 1)
 
-XP awarded  = round(baseXP × performance × typeBonus × share)
+XP awarded  = round(baseXP × performance × typeBonus × share)      (0 on defeat or critical failure)
 ```
 
 - **correctness** — fraction of acceptance criteria verified by the judge (not self-reported)

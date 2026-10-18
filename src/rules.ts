@@ -104,7 +104,8 @@ export function performance(p: PerformanceInput): number {
 }
 
 export function xpAward(enemy: Enemy, job: JobLine, perf: number, share: number, outcome: Outcome): number {
-  if (outcome === "critical") return 0;
+  // No XP without verified progress. Speed and thrift only count when something got done.
+  if (outcome === "critical" || outcome === "defeat") return 0;
   const bonus = WEAKNESS[enemy.kind].includes(job) ? 1.25 : 1;
   return Math.round(baseXp(enemy) * perf * bonus * share);
 }
