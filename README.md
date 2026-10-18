@@ -63,7 +63,7 @@ savepoint battle bug-42 --party aria --judge cass
 | The Chronicle | Shared context every CLI and API character reads and writes |
 | Save point | git checkpoint before every battle |
 
-Full rules: **[docs/WORLD.md](docs/WORLD.md)** · How it is built: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** · Lessons from other projects: **[docs/CROSS_REFERENCE.md](docs/CROSS_REFERENCE.md)** · The 90s feel: **[docs/EXPERIENCE.md](docs/EXPERIENCE.md)**
+Full rules: **[docs/WORLD.md](docs/WORLD.md)** · How it is built: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** · Lessons from other projects: **[docs/CROSS_REFERENCE.md](docs/CROSS_REFERENCE.md)** · The 90s feel: **[docs/EXPERIENCE.md](docs/EXPERIENCE.md)** · UX plan: **[docs/UX_PLAN.md](docs/UX_PLAN.md)**
 
 ## Three rules that make this more than a skin
 

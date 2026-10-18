@@ -41,9 +41,16 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 
 ## Act IV — "The Airship" (v1.0): the full 90s experience
 
+The full design is in **[docs/UX_PLAN.md](docs/UX_PLAN.md)**; its §11 "launch slice" is the first milestone.
+
 | Quest | Size | Notes |
 |---|---|---|
-| Pixel-art web UI: world map, battle screen, party menu | 🐲 | Original art only |
+| `savepoint play`: local web server + game event stream over WebSocket | 🐗 | Binds to 127.0.0.1 with a one-time token |
+| Port the prototype Hero/Foe generators to `assets/` + a sprite-sheet compositor | 🐗 | Style rules enforced in code |
+| Launch slice: title, Guild Town, Quest Board, live battle, victory + loot review | 🐲 | See UX_PLAN §11 |
+| Gatekeeper **allow once** decision (via Claude Code's `ask`) | 👺 | Logged, no reliability penalty |
+| World Map from the repo tree, with fog of war from agent reads | 🐗 | |
+| Atelier: AI-proposed parts + Style Gatekeeper + approval gallery | 🐲 | |
 | Original chiptune SFX pack wired to hook events | 👺 | Composers wanted |
 | Title screen, encounter wipes, damage numbers, victory fanfare via hooks | 👺 | Must never block the hook's decision |
 
