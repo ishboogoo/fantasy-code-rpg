@@ -1,0 +1,233 @@
+#!/usr/bin/env node
+// savepoint — command-line entry point.
+
+import { parseArgs } from "node:util";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Store } from "./store.ts";
+import { battle, type JudgeSpec } from "./battle.ts";
+import { ADAPTERS } from "./adapters/index.ts";
+import { JOB_TITLES } from "./rules.ts";
+import { classify } from "./gate.ts";
+import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
+import { dirname } from "node:path";
+import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
+import type { AdapterKind, Character, Enemy, EnemyKind, JobLine, World } from "./types.ts";
+
+const HELP = `
+SAVEPOINT — a 90s-RPG harness for AI agent teams
+
+  savepoint init                               Create .savepoint/ in this folder
+  savepoint recruit <name> --adapter <kind> --job <job> [--model m] [--mp 100 --refill 5]
+                     [--billing api|subscription] [--cmd "..."] [--base-url u] [--skill 0.8]
+  savepoint party                              Show the party
+  savepoint spawn <id> --name "…" --kind orc --level 4 --criteria "a: desc" --criteria "b: desc"
+                     [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
+  savepoint spawn --file quest.json            Spawn enemies from a JSON file
+  savepoint enemies                            Show the bestiary
+  savepoint battle <enemy-id> --party a,b [--judge tests|auto|<character>]
+  savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
+  savepoint fund <gold>                        Add gold to the treasury
+  savepoint demo [--battles 40]                Simulated campaign with mock characters
+  savepoint gate                               Claude Code PreToolUse hook (installed automatically)
+  savepoint statusline                         One-line HUD for Claude Code's status line
+
+Adapters: ${Object.keys(ADAPTERS).join(", ")}
+Jobs:     ${Object.keys(JOB_TITLES).join(", ")}
+Enemies:  slime, goblin, orc, golem, wyvern, lich, mimic, dragon
+`;
+
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
+  options: {
+    adapter: { type: "string" }, job: { type: "string" }, model: { type: "string" },
+    mp: { type: "string" }, refill: { type: "string" }, billing: { type: "string" },
+    cmd: { type: "string" }, "base-url": { type: "string" }, skill: { type: "string" },
+    name: { type: "string" }, kind: { type: "string" }, level: { type: "string" },
+    criteria: { type: "string", multiple: true }, check: { type: "string", multiple: true },
+    guard: { type: "string" }, gold: { type: "string" }, turns: { type: "string" },
+    file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
+    battles: { type: "string" }, help: { type: "boolean", short: "h" },
+  },
+});
+
+const cwd = process.cwd();
+const store = new Store(cwd);
+const [cmd, ...rest] = positionals;
+
+function newCharacter(name: string, adapter: AdapterKind, job: JobLine, extra: Partial<Character> = {}): Character {
+  return {
+    id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name, adapter, job,
+    tier: 0, level: 1, xp: 0, totalXp: 0, records: {}, status: [], recruitedAt: new Date().toISOString(), ...extra,
+  };
+}
+
+function parseCriteria(list: string[] = [], checks: string[] = []): Enemy["criteria"] {
+  const checkMap = new Map(checks.map((c) => [c.slice(0, c.indexOf("=")), c.slice(c.indexOf("=") + 1)]));
+  return list.map((s, i) => {
+    const colon = s.indexOf(":");
+    const id = colon > 0 ? s.slice(0, colon).trim() : `c${i + 1}`;
+    const description = colon > 0 ? s.slice(colon + 1).trim() : s;
+    return { id, description, check: checkMap.get(id), met: false };
+  });
+}
+
+async function main(): Promise<void> {
+  if (!cmd || values.help) { console.log(HELP); return; }
+
+  if (cmd === "init") {
+    store.init();
+    console.log(box("NEW GAME", ["A new world was created in .savepoint/", "Next: recruit a character at the Tavern."]));
+    return;
+  }
+  if (cmd === "demo") return demo(Number(values.battles ?? 40));
+  if (cmd === "gate") return gate();
+  if (cmd === "statusline") return statusline();
+
+  const world = store.load();
+  const save = () => store.save(world);
+
+  switch (cmd) {
+    case "recruit": {
+      const name = rest[0];
+      const adapter = values.adapter as AdapterKind;
+      const job = (values.job ?? "fighter") as JobLine;
+      if (!name || !ADAPTERS[adapter]) throw new Error(`Usage: recruit <name> --adapter <${Object.keys(ADAPTERS).join("|")}> --job <job>`);
+      if (!JOB_TITLES[job]) throw new Error(`Unknown job ${job}`);
+      const config: Record<string, string> = {};
+      if (values.billing) config.billing = values.billing;
+      if (values.cmd) config.command = values.cmd;
+      if (values["base-url"]) config.baseUrl = values["base-url"];
+      if (values.skill) config.skill = values.skill;
+      const c = newCharacter(name, adapter, job, {
+        model: values.model, adapterConfig: config,
+        mp: values.mp ? { max: Number(values.mp), current: Number(values.mp), refillHours: Number(values.refill ?? 5), lastRefill: new Date().toISOString() } : undefined,
+      });
+      if (world.party.some((x) => x.id === c.id)) throw new Error(`${c.id} is already in the party.`);
+      world.party.push(c);
+      save();
+      console.log(box("TAVERN", [`${name} joins the party!`, characterLine(c), `Enforcement: ${ADAPTERS[adapter].enforcement}`]));
+      return;
+    }
+    case "party": console.log(partyScreen(world)); return;
+    case "enemies": console.log(enemiesScreen(world)); return;
+    case "spawn": {
+      const spawned: Enemy[] = values.file
+        ? (JSON.parse(readFileSync(values.file, "utf8")) as Enemy[])
+        : [{
+          id: rest[0] ?? `e${world.enemies.length + 1}`, name: values.name ?? rest[0] ?? "Unnamed foe",
+          kind: (values.kind ?? "goblin") as EnemyKind, level: Number(values.level ?? 1),
+          description: values.name ?? "", criteria: parseCriteria(values.criteria, values.check),
+          budget: { gold: Number(values.gold ?? 1), maxTurns: Number(values.turns ?? 20) },
+          guard: values.guard, status: "lurking",
+        }];
+      for (const e of spawned) {
+        e.status ??= "lurking";
+        e.criteria = e.criteria.map((k) => ({ ...k, met: k.met ?? false }));
+        if (!e.criteria.length) throw new Error(`${e.id} needs at least one --criteria (that's its HP).`);
+        world.enemies.push(e);
+      }
+      save();
+      console.log(enemiesScreen(world));
+      return;
+    }
+    case "battle": {
+      const enemyId = rest[0];
+      const partyIds = (values.party ?? "").split(",").filter(Boolean);
+      if (!enemyId || !partyIds.length) throw new Error("Usage: battle <enemy-id> --party a,b [--judge tests|auto|<id>]");
+      const j = values.judge ?? "auto";
+      const judge: JudgeSpec = j === "tests" ? { kind: "tests" } : j === "auto" ? { kind: "auto" } : { kind: "character", id: j };
+      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, onEvent: (l) => console.log(l) });
+      save();
+      console.log(reportScreen(world, r));
+      return;
+    }
+    case "lore": store.addLore(rest.join(" ")); console.log("📜 Written into the Chronicle."); return;
+    case "fund": world.treasury.gold += Number(rest[0] ?? 0); save(); console.log(`💰 Treasury now holds ${world.treasury.gold - world.treasury.spent} G`); return;
+    default: console.log(HELP);
+  }
+}
+
+async function readStdin(): Promise<string> {
+  let data = "";
+  for await (const chunk of process.stdin) data += chunk;
+  return data;
+}
+
+/** PreToolUse hook. Silent (no decision) unless a SAVEPOINT character is acting. */
+async function gate(): Promise<void> {
+  const id = process.env.SAVEPOINT_CHARACTER;
+  const home = process.env.SAVEPOINT_HOME;
+  const raw = await readStdin();
+  if (!id || !home) return;
+  const s = new Store(dirname(home));
+  const c = s.load().party.find((x) => x.id === id);
+  const event = JSON.parse(raw || "{}") as { tool_name?: string; tool_input?: Record<string, unknown> };
+  const tool = event.tool_name ?? "unknown";
+  const decision = c ? classify(tool, event.tool_input ?? {}, permissionsFor(c.tier))
+    : { allow: false, reason: `Unknown character ${id}.` };
+  if (decision.allow) return;
+  s.recordViolation(id, tool, decision.reason);
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: `🛡️ The Gatekeeper blocks you. ${decision.reason}`,
+    },
+  }));
+}
+
+/** Compact HUD: the acting character if known, otherwise the party. */
+function statusline(): void {
+  if (!store.exists()) return;
+  const w = store.load();
+  const who = process.env.SAVEPOINT_CHARACTER;
+  const list = who ? w.party.filter((c) => c.id === who) : w.party;
+  const hud = list.map((c) => {
+    const mp = c.mp ? ` MP${c.mp.current}/${c.mp.max}` : "";
+    return `${c.name} Lv${c.level} ${title(c)} REL${reliability(recordFor(c)).toFixed(2)}${mp}`;
+  });
+  const foes = w.enemies.filter((e) => e.status !== "defeated").length;
+  console.log(`💾 ${hud.join(" │ ")} │ 💰${(w.treasury.gold - w.treasury.spent).toFixed(2)}G │ 👾${foes}`);
+}
+
+/** A self-contained simulated campaign, so anyone can see the mechanics in 5 seconds. */
+async function demo(n: number): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), "savepoint-demo-"));
+  const s = new Store(dir);
+  s.init();
+  const world: World = s.load();
+  world.treasury.gold = 100;
+  world.party.push(
+    newCharacter("Aria", "mock", "fighter", { adapterConfig: { skill: "0.92", seed: "demo" } }),
+    newCharacter("Bram", "mock", "fighter", { adapterConfig: { skill: "0.55", seed: "demo" } }),
+    newCharacter("Cass", "mock", "cleric", { adapterConfig: { skill: "0.85", seed: "demo" } }),
+  );
+  s.addLore("Tests live in test/. Run them with npm test.");
+  const kinds: EnemyKind[] = ["slime", "goblin", "orc", "golem", "goblin", "wyvern", "lich", "mimic"];
+  console.log(box("SAVEPOINT DEMO", [
+    "Two mock fighters: Aria (reliable) and Bram (sloppy).",
+    "Cass the Cleric judges. Watch who earns promotions.",
+  ]));
+  for (let i = 0; i < n; i++) {
+    const kind = kinds[i % kinds.length];
+    const level = 1 + Math.floor(i / 3);
+    const e: Enemy = {
+      id: `q${i + 1}`, name: `${kind[0].toUpperCase()}${kind.slice(1)} #${i + 1}`, kind, level,
+      description: `Quest ${i + 1}`, status: "lurking",
+      criteria: Array.from({ length: 2 + (i % 3) }, (_, k) => ({ id: `c${k + 1}`, description: `criterion ${k + 1}`, met: false })),
+      budget: { gold: 0.5, maxTurns: 10 },
+    };
+    world.enemies.push(e);
+    const hero = i % 2 === 0 ? "aria" : "bram";
+    const r = await battle({ world, store: s, enemyId: e.id, partyIds: [hero], judge: { kind: "character", id: "cass" }, cwd: dir,
+      onEvent: (l) => { if (/promoted|cursed|reached Lv|⚠️/.test(l)) console.log(`[${e.id}] ${l.trim()}`); } });
+    if (r.verdict.outcome === "critical") console.log(`[${e.id}] ✖ critical: ${r.verdict.notes.split(".")[0]}`);
+  }
+  s.save(world);
+  console.log("\n" + partyScreen(world));
+  console.log(`\nWorld saved in ${dir}/.savepoint — open chronicle/ to see the shared context.`);
+}
+
+main().catch((e: unknown) => { console.error(`✖ ${e instanceof Error ? e.message : String(e)}`); process.exit(1); });

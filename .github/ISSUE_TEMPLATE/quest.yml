@@ -1,0 +1,27 @@
+name: "⚔️ Quest (feature or task)"
+description: Propose work for the guild
+labels: ["quest"]
+body:
+  - type: dropdown
+    id: size
+    attributes:
+      label: Enemy size
+      description: How big is this?
+      options: ["🟢 Slime — first PR, < 1 hour", "👺 Goblin — small, a few hours", "🐗 Orc — a feature, a few days", "🐲 Dragon — epic, needs a party"]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes: { label: What should exist when this quest is done? }
+    validations: { required: true }
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria (the enemy's HP)
+      description: One per line. How will we verify each one?
+      placeholder: "- [ ] `npm test` covers X\n- [ ] README documents Y"
+    validations: { required: true }
+  - type: dropdown
+    id: job
+    attributes:
+      label: Best job class
+      options: ["⚔️ Fighter (code)", "🔮 Mage (design)", "✚ Cleric (tests/review)", "🗡️ Thief (debugging)", "🎵 Bard (docs)", "🎨 Artist", "🎶 Composer"]

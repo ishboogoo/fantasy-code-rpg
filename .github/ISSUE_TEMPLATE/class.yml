@@ -1,0 +1,18 @@
+name: "🧙 New job, enemy or mechanic"
+description: Game design proposal
+labels: ["game-design"]
+body:
+  - type: textarea
+    id: idea
+    attributes: { label: The mechanic, in game terms }
+    validations: { required: true }
+  - type: textarea
+    id: reality
+    attributes:
+      label: What it maps to in reality
+      description: Every mechanic must measure or enforce something real. What is it?
+    validations: { required: true }
+  - type: textarea
+    id: exploit
+    attributes: { label: How could an agent or player game it? How do we prevent that? }
+    validations: { required: true }

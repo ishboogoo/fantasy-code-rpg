@@ -1,0 +1,26 @@
+[
+  {
+    "id": "typo-1",
+    "name": "Fix the README typo",
+    "kind": "slime",
+    "level": 1,
+    "description": "The README says 'recieve'. Fix the spelling everywhere.",
+    "criteria": [
+      { "id": "spelling", "description": "No 'recieve' anywhere in the repo", "check": "! grep -ri recieve --include=*.md ." }
+    ],
+    "budget": { "gold": 0.2, "maxTurns": 5 }
+  },
+  {
+    "id": "bug-42",
+    "name": "Login crashes on empty email",
+    "kind": "goblin",
+    "level": 3,
+    "description": "Submitting the login form with an empty email throws instead of showing a validation message.",
+    "criteria": [
+      { "id": "fix", "description": "Empty email shows 'Email is required'" },
+      { "id": "test", "description": "A regression test covers the empty-email case", "check": "npm test -- --test-name-pattern=empty-email" }
+    ],
+    "guard": "npm test",
+    "budget": { "gold": 1, "maxTurns": 20 }
+  }
+]

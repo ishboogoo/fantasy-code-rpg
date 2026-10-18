@@ -1,0 +1,20 @@
+{
+  "name": "savepoint",
+  "version": "0.1.0",
+  "description": "A 90s-RPG harness for AI agent teams. Agents earn autonomy by proving they're reliable.",
+  "type": "module",
+  "bin": { "savepoint": "src/cli.ts" },
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/cli.ts",
+    "demo": "node src/cli.ts demo",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["ai-agents", "multi-agent", "orchestration", "claude-code", "codex", "gemini-cli", "rpg", "harness"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}
