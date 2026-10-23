@@ -6,7 +6,7 @@ All notable changes, newest first. Versions follow [Semantic Versioning](https:/
 
 ### Fixed
 - **Safer card import:** only the plain text chunk the game writes is read from a card PNG (a compressed one could have expanded without limit), and oversized hero data is refused.
-- **Proof goes to the right heroes:** in a Pincer only the approach you keep earns proof, and in a Siege a part that clashed and was set aside earns none.
+- **Proof goes to the right heroes:** in a Pincer only the approach you keep earns proof, and in a Siege a part that clashed, or changed nothing, earns none.
 - `fcrpg art <hero> --off` works without an image argument.
 - Recruiting from a card falls back to an available AI connection when the hero's old one isn't on this computer.
 

@@ -339,6 +339,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   // Siege: each part is fought at the same time in its own copy, then the parts are merged into the main copy.
   const clashes: string[] = [];
   const siegeParts = new Map<string, SiegePart[]>(); // hero → the parts they took
+  const joined = new Set<string>(); // parts whose changes made it into the main copy
   if (opts.formation === "siege") {
     if (!inst) throw new Error("Siege needs a git project: each part runs in its own copy.");
     const parts = (enemy.parts ?? []).slice(0, MAX_SIEGE_PARTS);
@@ -368,7 +369,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     // Merge in the order the parts were listed; a part that clashes with earlier ones is set aside.
     for (const x of results) {
       if (await mergeInto(inst, x.where, `join ${x.part.name} into ${enemy.id}`)) {
-        if (x.where.savePoints.length) { say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) }); }
+        if (x.where.savePoints.length) { joined.add(x.part.id); say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) }); }
       } else {
         clashes.push(x.part.id);
         say(`  💥 ${x.part.name} clashed with the parts before it and was set aside. Fight it again after you keep the rest.`);
@@ -377,8 +378,9 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       siegeParts.set(x.hero.id, [...(siegeParts.get(x.hero.id) ?? []), x.part]);
     }
     party.splice(0, party.length, ...party.filter((c) => siegeParts.has(c.id))); // heroes without a part sit this one out
-    // Proof goes only to heroes with at least one part that joined the main copy.
-    contributors = party.filter((c) => (siegeParts.get(c.id) ?? []).some((p) => !clashes.includes(p.id))).map((c) => c.id);
+    // Proof goes only to heroes with at least one part whose changes joined the main copy
+    // (a part that clashed, or changed nothing, earns no proof).
+    contributors = party.filter((c) => (siegeParts.get(c.id) ?? []).some((p) => joined.has(p.id))).map((c) => c.id);
   }
   const fightDir = inst?.path ?? cwd;
 
