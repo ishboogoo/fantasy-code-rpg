@@ -90,10 +90,26 @@
       info.children[0].textContent = t(b.id); info.children[1].textContent = status[b.id]; info.children[2].textContent = t('keys');
     }
     select(cur);
+    function centre(b) { return [b.x + b.w / 2, b.y + (b.h || 0) / 2]; }
+    function nearest(from, dx, dy) {
+      var a = centre(Town.buildings[from]), best = from, bestScore = Infinity;
+      Town.buildings.forEach(function (b, i) {
+        if (i === from) return;
+        var c = centre(b), ox = c[0] - a[0], oy = c[1] - a[1];
+        var along = dx ? ox * dx : oy * dy, across = Math.abs(dx ? oy : ox);
+        if (along <= 4) return;                      // not in that direction
+        if (dx && across > Math.max(24, along)) return; // Left/Right stay on roughly the same row
+        var score = along + across * 2;
+        if (score < bestScore) { bestScore = score; best = i; }
+      });
+      return best;
+    }
     G.onKey(function (e) {
       var n = Town.buildings.length;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { select((cur + 1) % n); return true; }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { select((cur - 1 + n) % n); return true; }
+      // Arrows follow the map: the nearest building in that direction (Left/Right along a row, Up/Down across rows).
+      var dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (dir) { select(nearest(cur, dir[0], dir[1])); return true; }
+      if (e.key === 'Tab') { select((cur + (e.shiftKey ? n - 1 : 1)) % n); return true; }
       if (e.key === 'Enter' || e.key === 'z' || e.key === 'Z') { G.go(targets[Town.buildings[cur].id]); return true; }
       return false;
     });
