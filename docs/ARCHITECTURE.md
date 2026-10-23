@@ -52,6 +52,8 @@ flowchart LR
 | `src/quests.ts` | The six quest types and their defaults; the Law's keyword classifier. | no — pure |
 | `src/council.ts` | The Council: decision cascade (Law → Ledger → Seer → Trial → You), decision records and outcomes, Thompson-sampling maths. | `chronicle/decisions.jsonl`, `outcomes.jsonl` |
 | `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
+| `src/hooks.ts` | One rulebook for three CLIs: tool-name translation, reply formats, the "no proof, no victory" stop gate, hook settings for Claude Code, Codex and Gemini CLI. | checks run on stop |
+| `src/importers.ts` | GitHub Issues → quests through `gh`. | `gh` |
 | `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
 | `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |
@@ -80,8 +82,8 @@ A Mage on the API can write a plan, a Fighter on Claude Code can implement it, a
 | Adapter | Mechanism |
 |---|---|
 | claude-code | **Gatekeeper hook** (`src/gate.ts`) checks every tool call via Claude Code's `PreToolUse` hook, plus `--allowedTools` per tier as a second wall |
-| codex | `--sandbox read-only` / `workspace-write` (+ network config at T3) |
-| gemini-cli | `--approval-mode` default / auto_edit / yolo, `--sandbox` once exec is allowed |
+| codex | `--sandbox read-only` / `workspace-write` (+ network config at T3), plus the same Gatekeeper through Codex hooks (`-c hooks.PreToolUse`, `hooks.Stop`) |
+| gemini-cli | `--approval-mode` default / auto_edit / yolo, `--sandbox` once exec is allowed, plus the same Gatekeeper through Gemini hooks (`BeforeTool`, `AfterAgent`) |
 | anthropic-api, openai-compatible | Text only — they can't act on the world at any tier yet |
 | shell | `minTier: 2`; the battle refuses to start below it |
 

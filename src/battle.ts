@@ -15,6 +15,15 @@ import { proofOf, questTypeOf } from "./quests.ts";
 import { lastJson } from "./stages.ts";
 import { vendor } from "./party.ts";
 import type { Council } from "./council.ts";
+import { existsSync as exists, readdirSync, rmSync } from "node:fs";
+import { join as joinPath } from "node:path";
+
+/** Each battle gets a fresh allowance of "the enemy still stands" pushes. */
+function resetStopCounters(home: string, questId: string): void {
+  const dir = joinPath(home, "hooks");
+  if (!exists(dir)) return;
+  for (const f of readdirSync(dir)) if (f.startsWith(`stop-${questId}-`)) rmSync(joinPath(dir, f), { force: true });
+}
 
 export type JudgeSpec = { kind: "tests" } | { kind: "character"; id: string } | { kind: "auto" };
 
@@ -199,6 +208,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   if (isolate) inst = await createInstance(cwd, battleId);
   const workdir = inst?.path ?? cwd;
   const metBefore = new Set(enemy.criteria.filter((k) => k.met).map((k) => k.id));
+  resetStopCounters(store.root, enemy.id);
   store.log({ type: "battle_start", battle: battleId, enemy: enemy.id, party: party.map((c) => c.id), base: inst?.base ?? null, workdir });
   say(`${enemy.name} appears! (Lv ${enemy.level}, ${enemy.criteria.filter((k) => !k.met).length} HP)`);
   if (inst) say(`💾 Save point ${inst.base.slice(0, 8)} · the party fights in its own copy of the project`);
@@ -217,7 +227,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     if (broke) { say(`  ${c.name}: ${broke}`); continue; }
     say(`  ${c.name} the ${title(c)} acts…`);
     const before = store.violationCount(c.id);
-    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: workdir, permissions: perms, maxTurns, goldLimit, home: store.root });
+    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: workdir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
     const blocked = store.violationCount(c.id) - before;
     if (blocked > 0 && !r.violation) r.violation = `was stopped by the Gatekeeper ${blocked} time(s)`;
     spend(world, c, r.costGold, r.costMp);

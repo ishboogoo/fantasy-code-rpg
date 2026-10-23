@@ -170,10 +170,10 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 ## 10. Build order
 
 1. ✅ **Quest record upgrade.** Quest types, proof per condition, default budgets, "needs".
-2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. 🔨 One trust rulebook compiled into hooks for all three CLIs.
-3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). 🔨 A Seer adapter to confirm the Clerk's quest type.
+2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. ✅ One rulebook enforced through hooks in Claude Code, Codex and Gemini CLI.
+3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. 🔨 A Seer adapter to confirm the Clerk's quest type.
 4. ✅ **Party recommendation** through the Council (Law + Ledger). 🔨 Learning from swaps.
 5. 🔨 **Battle event stream** to the browser.
-6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. 🔨 `Stop`-hook gate inside Claude Code so heroes keep working while checks fail.
+6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. ✅ "No proof, no victory" stop hook in all three CLIs.
 7. 🔨 **Debrief** lessons into the Chronicle.
 8. ⏳ **Launch scenes** in loop order, then the Next scenes.

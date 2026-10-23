@@ -16,6 +16,8 @@ export interface AdapterRequest {
   goldLimit: number;
   /** Absolute path of the .savepoint/ folder, for adapters that install hooks. */
   home?: string;
+  /** The quest being fought, so the stop hook knows which checks to run. */
+  questId?: string;
 }
 
 export interface AdapterResult {

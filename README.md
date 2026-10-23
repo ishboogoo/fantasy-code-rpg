@@ -46,6 +46,7 @@ savepoint fund 5                                  # 5 G = $5 of API budget
 savepoint lore "We use pnpm. Never edit /legacy."
 
 savepoint request "Login crashes when the email field is empty"   # the Clerk writes the quest
+savepoint import github --label bug  # or bring in open GitHub issues as quests
 savepoint plan q1                 # War Room: read-only scouting report and plan (automatic in Story mode)
 savepoint battle q1
 
@@ -90,7 +91,7 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. 36 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import. 41 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild

@@ -65,6 +65,8 @@ export interface Enemy {
   status: "lurking" | "engaged" | "defeated" | "fled";
   /** The request in your own words, as given at the Guild Counter. */
   request?: string;
+  /** Where the quest came from, such as a GitHub issue URL. */
+  source?: string;
   /** Questions the Clerk or a Scout needs answered before anyone fights (a Sphinx blocks the road). */
   questions?: string[];
   /** You approved the victory conditions (and the plan, once there is one). Story mode approves automatically. */

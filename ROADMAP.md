@@ -25,7 +25,7 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | ✅ **Clerk, Scout and Plan** (`request`, `answer`, `plan`, `approve`) and play styles | 🐗 | Next: import from GitHub Issues |
 | Enemy state machine: lurking → engaged → review → defeated / enraged (retrying) / escaped | 👺 | See ORCH in docs/CROSS_REFERENCE.md |
 | **Battlefield**: file globs a battle may touch; edits outside = violation | 👺 | Extend `gate.ts` |
-| `Stop` hook: "The enemy still stands!" — no proof, no victory | 👺 | Turn-budget capped; see jev-belay for the pattern |
+| ✅ Stop hook: "The enemy still stands!" — no proof, no victory, in Claude Code, Codex and Gemini CLI | 👺 | Capped at 3 pushes per battle |
 | In-flight budget enforcement | 👺 | CLI budget flags where available; LiteLLM keys for API characters |
 | Richer ledger fields in `log.jsonl` (model, tokens, duration) | 🟢 | |
 | `savepoint pause` — the **Stop spell** kill switch | 🟢 | Freezes battles, drops everyone to T0 |
@@ -36,9 +36,9 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | Quest | Size | Notes |
 |---|---|---|
 | **Chronicle MCP server** (`lore_get`, `lore_add`, `scroll_read`, `scroll_append`, `party_status`) | 🐗 | Lets every MCP-capable CLI share context mid-battle |
-| Codex and Gemini gatekeepers via their hook systems | 🐗 | Reuse `classify()` |
+| ✅ Codex and Gemini gatekeepers via their hook systems | 🐗 | `src/hooks.ts`. Verify on real installs (see VERIFY notes) |
 | Runtime adapters: wrap Claw Orchestrator or ORCH | 🐗 | Inherit their engines and cost ledgers |
-| Encounter tables from GitHub/Linear issues | 👺 | `bug` → Goblin, `perf` → Wyvern, `epic` → Dragon |
+| ✅ Quests from GitHub issues (`import github`) | 👺 | Linear, Notion and others through MCP connectors |
 | Bosses with phases (epic → subtasks) | 🐗 | Summoner (T4) splits them |
 | Equipment: system prompts, MCP servers, skills as tier-gated gear | 🐗 | See ClaudeArcade notes |
 | Audit sampling at T4 | 👺 | 1-in-N victories go to a human judge |

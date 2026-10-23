@@ -8,21 +8,29 @@
 import type { Adapter, AdapterRequest, AdapterResult } from "./adapter.ts";
 import { runProcess } from "./adapter.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { claudeHooks, codexHookArgs, geminiHooks, type HookCommands } from "../hooks.ts";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const CLI_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "cli.ts");
 
-/** Write a Claude Code settings file that routes every tool call through `savepoint gate`. */
-function gateSettings(home: string): string {
+const COMMANDS: HookCommands = {
+  gate: `node ${JSON.stringify(CLI_PATH)} gate`,
+  stop: `node ${JSON.stringify(CLI_PATH)} stop-gate`,
+};
+
+/** Write a settings file that routes every tool call and every stop through the Gatekeeper. */
+function hookSettings(home: string, name: string, settings: Record<string, unknown>): string {
   const dir = join(home, "hooks");
   mkdirSync(dir, { recursive: true });
-  const path = join(dir, "claude-settings.json");
-  const command = `node ${JSON.stringify(CLI_PATH)} gate`;
-  writeFileSync(path, JSON.stringify({
-    hooks: { PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command }] }] },
-  }, null, 2));
+  const path = join(dir, name);
+  writeFileSync(path, JSON.stringify(settings, null, 2));
   return path;
+}
+
+/** Tells the hooks who is acting, on which quest, and where the harness keeps its records. */
+function hookEnv(req: AdapterRequest): NodeJS.ProcessEnv {
+  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "" };
 }
 
 function billing(req: AdapterRequest): "subscription" | "api" {
@@ -46,8 +54,8 @@ export const claudeCode: Adapter = {
     if (req.character.model) args.push("--model", req.character.model);
     // Fine-grained enforcement: every tool call is checked by the Gatekeeper hook.
     // VERIFY: `--settings <file>` merges hooks on your Claude Code version.
-    if (req.home) args.push("--settings", gateSettings(req.home));
-    const env = { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "" };
+    if (req.home) args.push("--settings", hookSettings(req.home, "claude-settings.json", claudeHooks(COMMANDS)));
+    const env = hookEnv(req);
 
     const r = await runProcess("claude", args, { cwd: req.cwd, env });
     if (r.code !== 0 && !r.stdout) return fail(`claude exited ${r.code}: ${r.stderr.slice(0, 400)}`);
@@ -75,8 +83,11 @@ export const codex: Adapter = {
     const args = ["exec", "--sandbox", sandbox];
     if (p.network) args.push("-c", "sandbox_workspace_write.network_access=true");
     if (req.character.model) args.push("--model", req.character.model);
+    // Second wall: the same rulebook through Codex hooks. VERIFY: Codex may require hooks to be
+    // reviewed once with /hooks before they run; the sandbox above is the first wall either way.
+    if (req.home) args.push(...codexHookArgs(COMMANDS));
     args.push(req.prompt);
-    const r = await runProcess("codex", args, { cwd: req.cwd });
+    const r = await runProcess("codex", args, { cwd: req.cwd, env: hookEnv(req) });
     if (r.code !== 0) return fail(`codex exited ${r.code}: ${r.stderr.slice(0, 400)}`);
     // Codex doesn't report cost here; count one MP per call. Better estimators welcome.
     return { output: r.stdout, costGold: 0, costMp: 1, turns: 1 };
@@ -94,7 +105,11 @@ export const geminiCli: Adapter = {
     const args = ["-p", req.prompt, "--approval-mode", mode];
     if (p.exec) args.push("--sandbox");
     if (req.character.model) args.push("--model", req.character.model);
-    const r = await runProcess("gemini", args, { cwd: req.cwd });
+    // Second wall: the same rulebook through Gemini CLI hooks, passed as an extra settings layer.
+    // VERIFY: GEMINI_CLI_SYSTEM_SETTINGS_PATH points Gemini CLI at our settings file on your version.
+    const env = hookEnv(req);
+    if (req.home) env.GEMINI_CLI_SYSTEM_SETTINGS_PATH = hookSettings(req.home, "gemini-settings.json", geminiHooks(COMMANDS));
+    const r = await runProcess("gemini", args, { cwd: req.cwd, env });
     if (r.code !== 0) return fail(`gemini exited ${r.code}: ${r.stderr.slice(0, 400)}`);
     return { output: r.stdout, costGold: 0, costMp: 1, turns: 1 };
   },

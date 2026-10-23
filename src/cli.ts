@@ -13,7 +13,8 @@ import { adventurerOffer, answer, needsApproval, request, setPlayStyle, settings
 import { recommendParty, checkParty, type Role } from "./party.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
-import { classify } from "./gate.ts";
+import { importGithub } from "./importers.ts";
+import { decideTool, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
 import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { dirname } from "node:path";
 import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
@@ -34,6 +35,7 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
 
   The quest loop, in plain words:
   savepoint request "<what you want>" [--id q7] Guild Counter: the Clerk turns it into a quest
+  savepoint import github [--label bug] [--limit 10] [--repo owner/name]   Open issues become quests
   savepoint answer <quest> "<your answer>"     Answer the Clerk's or Scout's questions
   savepoint plan <quest>                       War Room: read-only scouting report and plan
   savepoint approve <quest>                    Approve the victory conditions and plan (Adventurer, Tactician)
@@ -47,7 +49,8 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
-  savepoint gate                               Claude Code PreToolUse hook (installed automatically)
+  savepoint gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
+  savepoint stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
   savepoint statusline                         One-line HUD for Claude Code's status line
 
 Adapters: ${Object.keys(ADAPTERS).join(", ")}
@@ -67,7 +70,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
-    id: { type: "string" }, "play-style": { type: "string" },
+    id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
 
@@ -103,6 +106,7 @@ async function main(): Promise<void> {
   }
   if (cmd === "demo") return demo(Number(values.battles ?? 40));
   if (cmd === "gate") return gate();
+  if (cmd === "stop-gate") return stopGateCmd();
   if (cmd === "statusline") return statusline();
 
   const world = store.load();
@@ -171,6 +175,14 @@ async function main(): Promise<void> {
       console.log(questWindow(r.quest, `GUILD COUNTER · written by ${r.by}`));
       if (r.dropped.length) console.log(`  (The Gatekeeper refused ${r.dropped.length} proposed check(s) as unsafe; a judge will decide those instead.)`);
       console.log(nextStep(world, r.quest));
+      return;
+    }
+    case "import": {
+      if (rest[0] !== "github") throw new Error("Usage: import github [--label bug] [--limit 10] [--repo owner/name]. Other trackers: paste the text into savepoint request.");
+      const r = await importGithub(world, store, council, cwd, { label: values.label, limit: values.limit ? Number(values.limit) : undefined, repo: values.repo });
+      save();
+      for (const a of r.added) console.log(`📜 ${a.quest.id} · ${a.quest.name} (${QUEST_TYPES[questTypeOf(a.quest)].label})${a.quest.questions?.length ? " · has questions" : ""}`);
+      console.log(`${r.added.length} new quest(s) on the board${r.skipped ? `, ${r.skipped} already there` : ""}.`);
       return;
     }
     case "answer": {
@@ -315,8 +327,15 @@ async function readStdin(): Promise<string> {
   return data;
 }
 
-/** PreToolUse hook. Silent (no decision) unless a SAVEPOINT character is acting. */
+function hookCli(): HookCli {
+  const c = values.cli ?? "claude";
+  if (c !== "claude" && c !== "codex" && c !== "gemini") throw new Error("--cli must be claude, codex or gemini");
+  return c;
+}
+
+/** Before every tool call (Claude Code PreToolUse, Codex PreToolUse, Gemini BeforeTool). Silent unless a hero is acting. */
 async function gate(): Promise<void> {
+  const cli = hookCli();
   const id = process.env.SAVEPOINT_CHARACTER;
   const home = process.env.SAVEPOINT_HOME;
   const raw = await readStdin();
@@ -325,17 +344,24 @@ async function gate(): Promise<void> {
   const c = s.load().party.find((x) => x.id === id);
   const event = JSON.parse(raw || "{}") as { tool_name?: string; tool_input?: Record<string, unknown> };
   const tool = event.tool_name ?? "unknown";
-  const decision = c ? classify(tool, event.tool_input ?? {}, permissionsFor(c.tier))
+  const decision = c ? decideTool(cli, tool, event.tool_input ?? {}, permissionsFor(c.tier))
     : { allow: false, reason: `Unknown character ${id}.` };
   if (decision.allow) return;
   s.recordViolation(id, tool, decision.reason);
-  console.log(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: `🛡️ The Gatekeeper blocks you. ${decision.reason}`,
-    },
-  }));
+  console.log(denyOutput(cli, decision.reason));
+}
+
+/** When a hero tries to stop (Claude Code / Codex Stop, Gemini AfterAgent): no proof, no victory. */
+async function stopGateCmd(): Promise<void> {
+  const cli = hookCli();
+  const id = process.env.SAVEPOINT_CHARACTER, home = process.env.SAVEPOINT_HOME, questId = process.env.SAVEPOINT_QUEST;
+  const raw = await readStdin();
+  if (!id || !home || !questId) { console.log("{}"); return; }
+  const quest = new Store(dirname(home)).load().enemies.find((e) => e.id === questId);
+  if (!quest) { console.log("{}"); return; }
+  const event = JSON.parse(raw || "{}") as { cwd?: string };
+  const r = await stopGate({ home, quest, characterId: id, cwd: event.cwd ?? process.cwd() });
+  console.log(r.keepGoing ? keepGoingOutput(cli, r.reason) : "{}");
 }
 
 /** Compact HUD: the acting character if known, otherwise the party. */

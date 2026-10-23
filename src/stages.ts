@@ -88,7 +88,9 @@ interface ClerkReply {
 export interface RequestResult { quest: Enemy; by: string; dropped: string[] }
 
 /** Turn a request in plain words into a quest with victory conditions. */
-export async function request(world: World, store: Store, council: Council, text: string, cwd: string, id?: string): Promise<RequestResult> {
+export interface RequestHint { questType?: QuestType; source?: string; why?: string }
+
+export async function request(world: World, store: Store, council: Council, text: string, cwd: string, id?: string, hint: RequestHint = {}): Promise<RequestResult> {
   const qid = id ?? nextId(world);
   const clerk = pickHelper(world, ["bard", "mage", "cleric"]);
   let reply: ClerkReply | null = null;
@@ -120,7 +122,10 @@ export async function request(world: World, store: Store, council: Council, text
   if (!conditions.length) conditions.push({ id: "done", description: text, proof: "human", met: false });
 
   const typeDecision = council.decide<QuestType>("quest-type", `What kind of quest is "${text}"?`, {
-    law: () => { const c = classifyByRules(text); return c ? { answer: c.type, confidence: 0.9, reasons: [`Mentions "${c.matched[0]}"`] } : null; },
+    law: () => {
+      if (hint.questType) return { answer: hint.questType, confidence: 0.95, reasons: [hint.why ?? "Set by you"] };
+      const c = classifyByRules(text); return c ? { answer: c.type, confidence: 0.9, reasons: [`Mentions "${c.matched[0]}"`] } : null;
+    },
     seer: () => {
       const t = reply?.questType as QuestType | undefined;
       return t && QUEST_TYPES[t] ? { answer: t, confidence: 0.6, reasons: [`The Clerk${clerk ? ` (${clerk.name})` : ""} read it as ${QUEST_TYPES[t].label}`] } : null;
@@ -134,7 +139,7 @@ export async function request(world: World, store: Store, council: Council, text
     id: qid,
     name: (reply?.name && String(reply.name).slice(0, 60)) || text.slice(0, 60),
     kind, questType, level: clampInt(reply?.level, 1, 10, 1),
-    description: text, request: text, criteria: conditions,
+    description: text, request: text, source: hint.source, criteria: conditions,
     budget: { gold: Number.isFinite(reply?.goldBudget) && reply!.goldBudget! > 0 ? Math.min(reply!.goldBudget!, 20) : QUEST_TYPES[questType ?? questTypeOf({ kind })].gold, maxTurns: 20 },
     questions: (reply?.questions ?? []).filter((q) => typeof q === "string" && q.trim()).slice(0, 3),
     approved: !needsApproval(world),
