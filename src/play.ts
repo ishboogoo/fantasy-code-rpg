@@ -18,7 +18,7 @@ import { answer, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { checkParty, recommendParty, vendor, type Role } from "./party.ts";
 import { recruit } from "./roster.ts";
 import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
-import { runProcess } from "./adapters/adapter.ts";
+import { findProgram } from "./adapters/adapter.ts";
 import { refillMp } from "./economy.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
 import type { AdapterKind, Formation, JobLine, World } from "./types.ts";
@@ -96,7 +96,7 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
 
 /** Which AI connections this computer has: installed CLIs and API keys (yes/no only, never the keys). */
 async function connections(): Promise<Record<string, boolean>> {
-  const has = async (cmd: string) => (await runProcess("sh", ["-c", `command -v ${cmd}`], { cwd: ROOT, timeoutMs: 5000 })).code === 0;
+  const has = async (cmd: string) => (await findProgram(cmd)) !== null;
   return {
     "claude-code": await has("claude"), codex: await has("codex"), "gemini-cli": await has("gemini"),
     "anthropic-api": !!process.env.ANTHROPIC_API_KEY, "openai-compatible": !!process.env.OPENAI_API_KEY, mock: true,

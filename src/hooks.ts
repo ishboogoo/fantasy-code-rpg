@@ -11,14 +11,15 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { classify, type GateDecision } from "./gate.ts";
-import { runProcess } from "./adapters/adapter.ts";
+import { runShell } from "./adapters/adapter.ts";
 import type { Enemy, Permissions } from "./types.ts";
 
 export type HookCli = "claude" | "codex" | "gemini";
 
 /** Map each CLI's tool to the Claude Code-style names the rulebook speaks. Unknown tools stay unknown and are denied. */
 export function normalizeTool(cli: HookCli, toolName: string, input: Record<string, unknown>): { tool: string; input: Record<string, unknown> } {
-  if (cli === "claude") return { tool: toolName, input };
+  // Claude Code on Windows runs commands through a PowerShell tool as well as Bash; same rules.
+  if (cli === "claude") return { tool: toolName === "PowerShell" ? "Bash" : toolName, input };
   if (cli === "codex") {
     if (toolName === "Bash") return { tool: "Bash", input };
     // apply_patch carries the whole patch in `command`; the rulebook treats it as a write, and the
@@ -87,7 +88,7 @@ export async function stopGate(opts: { home: string; quest: Enemy; characterId: 
   if (pushes >= MAX_PUSHES) return { keepGoing: false, reason: `Already sent back ${pushes} times; the judges take it from here.` };
   const failed: string[] = [];
   for (const k of checks) {
-    const r = await runProcess("sh", ["-c", k.check!], { cwd: opts.cwd, timeoutMs: 10 * 60_000 });
+    const r = await runShell(k.check!, { cwd: opts.cwd, timeoutMs: 10 * 60_000 });
     if (r.code !== 0) failed.push(`- ${k.id}: \`${k.check}\` failed.\n${(r.stdout + r.stderr).trim().split("\n").slice(-15).join("\n")}`);
   }
   if (!failed.length) return { keepGoing: false, reason: "Every check passes." };

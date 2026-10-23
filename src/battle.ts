@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { ADAPTERS } from "./adapters/index.ts";
-import { runProcess } from "./adapters/adapter.ts";
+import { runProcess, runShell } from "./adapters/adapter.ts";
 import { canAfford, refillMp, spend } from "./economy.ts";
 import {
   JOB_ROLE, gainXp, performance, permissionsFor, recordFor, reliability, settleTier, title, trialFor, xpAward,
@@ -80,7 +80,7 @@ async function runChecks(enemy: Enemy, cwd: string): Promise<Set<string>> {
   const met = new Set<string>();
   for (const k of enemy.criteria) {
     if (!k.check) continue;
-    const r = await runProcess("sh", ["-c", k.check], { cwd, timeoutMs: 10 * 60_000 });
+    const r = await runShell(k.check, { cwd, timeoutMs: 10 * 60_000 });
     if (r.code === 0) met.add(k.id);
   }
   return met;
@@ -458,7 +458,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const judgeGold = verdict.costGold; // the referee's fee doesn't count against the party's budget
 
   if (!critical && enemy.guard) {
-    const g = await runProcess("sh", ["-c", enemy.guard], { cwd: fightDir, timeoutMs: 15 * 60_000 });
+    const g = await runShell(enemy.guard, { cwd: fightDir, timeoutMs: 15 * 60_000 });
     if (g.code !== 0) critical = "guard check failed (regression)";
   }
   if (!critical && costGold > budgetGold + 1e-9) critical = `overspent: ${costGold.toFixed(3)}G of ${budgetGold}G`;

@@ -61,3 +61,8 @@ textarea { width: 100%; resize: none; }
 .hero .tag { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); font-size: 16px; color: var(--code4); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
 .typing::after { content: "▼"; color: var(--gold); margin-left: 6px; animation: bobv .6s steps(2) infinite; display: inline-block; }
 body.reduce *, body.reduce *::before, body.reduce *::after { animation: none !important; transition: none !important; }
+
+/* Screenshot button, top right of the game screen. */
+#snap { position: absolute; right: 12px; top: 64px; z-index: 50; font-size: 14px; line-height: 1; padding: 3px 6px; cursor: pointer;
+        background: rgba(2,8,6,.55); color: var(--white); border: 2px solid var(--code2); border-radius: 6px; opacity: .55; }
+#snap:hover, #snap:focus-visible { opacity: 1; }

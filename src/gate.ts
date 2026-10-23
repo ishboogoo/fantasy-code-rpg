@@ -22,11 +22,15 @@ const COMMAND_RULES: Array<[RegExp, Need, string]> = [
   [/\bgh\s+pr\s+merge\b|\bgit\s+push\b[^\n]*\b(main|master)\b/, "merge", "merging / pushing to the main branch"],
   [/\bgit\s+push\b|\bgh\s+pr\s+create\b/, "openPr", "pushing or opening a PR"],
   [/\b(curl|wget|ssh|scp|nc|npm\s+publish|pip\s+install|npm\s+(i|install)\b)/, "network", "network access"],
+  // PowerShell (Claude Code on Windows): the same powers under their native names.
+  [/\b(Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Start-BitsTransfer|New-Object\s+[\w.]*WebClient|Install-Module|Install-Package|winget|choco|scoop)\b/i, "network", "network access"],
 ];
 
 /** Commands no tier may run. Heroes included. */
 const FORBIDDEN: Array<[RegExp, string]> = [
   [/\brm\s+-[a-z]*r[a-z]*f?\s+(\/|~|\$HOME)(\s|$)/, "deleting the filesystem root or home"],
+  // PowerShell / cmd: deleting a drive root or the home folder (checked on the slash-normalised command).
+  [/\b(Remove-Item|rm|ri|del|erase|rd|rmdir)\b[^\n]*(\s|^)['"]?([a-z]:\/?|~\/?|\$HOME|\$env:USERPROFILE|%USERPROFILE%)['"]?(\s|$)/i, "deleting a drive root or home"],
   [/\bgit\s+push\b[^\n]*(--force|-f)\b/, "force-pushing"],
   [/(^|[\s/"'])\.fcrpg\//, "touching the harness's own records (character sheets, criteria, Chronicle). Only the harness writes there"],
 ];
@@ -34,7 +38,7 @@ const FORBIDDEN: Array<[RegExp, string]> = [
 export interface GateDecision { allow: boolean; need?: Need; reason: string }
 
 /** Commands that only look (no writing, no network, no running other programs). Any rank may run them. */
-const READ_ONLY_COMMANDS = /^(git\s+(log|status|diff|show|branch|ls-files|rev-parse|blame|grep)\b|ls|cat|head|tail|wc|grep|rg|find|pwd|echo|tree|file|stat|du|which|basename|dirname|sort|uniq|cut|sed\s+-n)\b/;
+const READ_ONLY_COMMANDS = /^(git\s+(log|status|diff|show|branch|ls-files|rev-parse|blame|grep)\b|ls|cat|head|tail|wc|grep|rg|find|pwd|echo|tree|file|stat|du|which|basename|dirname|sort|uniq|cut|sed\s+-n|Get-ChildItem|Get-Content|Get-Location|Select-String|Get-Item|Test-Path|Resolve-Path|dir|type)\b/i;
 
 /** True for a shell command made only of read-only parts: no redirection into files, no -exec / -delete, no in-place edits. */
 export function isReadOnlyCommand(command: string): boolean {
@@ -45,11 +49,14 @@ export function isReadOnlyCommand(command: string): boolean {
 
 export function classify(toolName: string, input: Record<string, unknown>, p: Permissions): GateDecision {
   const command = typeof input.command === "string" ? input.command : "";
-  const path = String(input.file_path ?? input.path ?? "");
+  // Windows paths use backslashes; the rules below are written with forward slashes.
+  const path = String(input.file_path ?? input.path ?? "").replace(/\\/g, "/");
 
   const isRead = READ_TOOLS.test(toolName);
+  // Windows commands may use backslashes; the forbidden rules are checked on both spellings.
+  const slashed = command.replace(/\\/g, "/");
   for (const [re, why] of FORBIDDEN) {
-    if (re.test(command) || (!isRead && re.test(path))) return { allow: false, reason: `Forbidden at every tier: ${why}.` };
+    if (re.test(command) || re.test(slashed) || (!isRead && re.test(path))) return { allow: false, reason: `Forbidden at every tier: ${why}.` };
   }
   // Read tools may look inside .fcrpg/ (lore and scrolls exist to be read). Shell commands
   // touching it are denied outright, so agents read the Chronicle with Read, not `cat`.
