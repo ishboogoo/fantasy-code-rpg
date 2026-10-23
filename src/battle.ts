@@ -54,7 +54,7 @@ export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
     `You are ${c.name}, a Tier ${c.tier} ${title(c)} in a software party.`,
     `Role: ${JOB_ROLE[c.job]}`,
     `Permissions this battle: read${can.length ? ", " + can.join(", ") : ""}. Not permitted: ${cannot.join(", ") || "nothing"}.`,
-    `(The harness enforces these. Attempts beyond them are recorded as critical failures.)`,
+    `(The harness enforces these. If you need something one rank above yours, just do it: the Gatekeeper pauses and asks the Guild Master, and asking is never held against you. Forbidden actions, such as touching .savepoint/ or force-pushing, are critical failures.)`,
     "",
     `# Quest: ${enemy.name}`,
     enemy.description,
@@ -134,7 +134,8 @@ async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Characte
 
   // 2. Then vote: independent judges, authors hidden, each condition scored on its own.
   const judges = forJudges.length ? chooseJudges(world, fighters, judge) : [];
-  if (forJudges.length && !judges.length) notes += ` ${forJudges.length} condition(s) need a judge and none is available, so they count as unmet.`;
+  // No judge to ask (heroes never grade their own work): those conditions go to you, like a split vote.
+  if (forJudges.length && !judges.length) { awaitingYou.push(...forJudges.map((k) => k.id)); notes += ` No judge is free (heroes never grade their own work), so you decide ${forJudges.map((k) => k.id).join(", ")}.`; }
   if (judges.length) {
     const diff = inst ? (await runProcess("git", ["diff", `${inst.base}..HEAD`], { cwd, timeoutMs: 60_000 })).stdout : "";
     const evidence = anonymize([store.scroll(enemy.id), diff ? `\n## Changes\n\n${diff.slice(0, 20_000)}` : ""].join(""), fighters);
@@ -152,7 +153,7 @@ async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Characte
       ].join("\n");
       const r = await ADAPTERS[j.adapter].run({
         character: j, prompt, cwd, permissions: { ...permissionsFor(Math.min(j.tier, 1) as 0 | 1), write: false },
-        maxTurns: 5, goldLimit: 0.5,
+        maxTurns: 5, goldLimit: 0.5, home: store.root, desk: true,
       });
       costGold += r.costGold;
       spend(world, j, r.costGold, r.costMp);
@@ -213,7 +214,7 @@ async function comparePincer(opts: BattleOptions, enemy: Enemy, leads: Character
           "Solution 2 (changes):", anonymize(diffs[second], leads) || "(no changes)",
           'Which better meets the conditions with less risk? Reply with JSON only: {"better": "1" or "2" or "tie", "why": "..."}',
         ].join("\n");
-        const r = await ADAPTERS[j.adapter].run({ character: j, prompt, cwd: insts[0].path, permissions: { ...permissionsFor(0) }, maxTurns: 5, goldLimit: 0.5 });
+        const r = await ADAPTERS[j.adapter].run({ character: j, prompt, cwd: insts[0].path, permissions: { ...permissionsFor(0) }, maxTurns: 5, goldLimit: 0.5, home: store.root, desk: true });
         spend(world, j, r.costGold, r.costMp);
         const b = String(lastJson<{ better?: string }>(r.output)?.better ?? "");
         return b === "1" ? first : b === "2" ? second : null;
@@ -359,6 +360,12 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   }
   if (!critical && costGold > budgetGold + 1e-9) critical = `overspent: ${costGold.toFixed(3)}G of ${budgetGold}G`;
   if (critical) { verdict.outcome = "critical"; verdict.notes = `${critical}. ${verdict.notes}`; }
+  // Saying no is never held against the hero: a loss after you refused an ask is a retreat, not a defeat.
+  const refused = new AskBook(store.chronicleDir).all().filter((a) => a.quest === enemy.id && a.at >= startedAt && (a.decision === "deny" || a.status === "expired"));
+  if (!critical && verdict.outcome === "defeat" && refused.length) {
+    verdict.outcome = "retreat";
+    verdict.notes = `${verdict.notes} You said no to ${refused.length} request(s), so this counts as a retreat, not a loss.`.trim();
+  }
 
   // Rewards
   const share = 1 / party.length;
@@ -414,7 +421,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   }
 
   if (opts.debrief && verdict.outcome !== "critical") {
-    const lessons = await debrief(world, store, enemy, verdict.outcome, party.map((c) => c.id), cwd);
+    const lessons = await debrief(world, store, enemy, verdict.awaitingYou.length ? "waiting for the Guild Master to check" : `${verdict.outcome} (${verdict.notes})`, party.map((c) => c.id), cwd);
     for (const l of lessons) say(`  📖 Lesson: ${l}`);
   }
 

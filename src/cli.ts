@@ -17,8 +17,8 @@ import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { importGithub } from "./importers.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
-import { decideTool, moveFor, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
-import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
+import { allowOutput, decideTool, moveFor, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
+import { permissionsFor, recordFor, reliability, tierFor, title } from "./rules.ts";
 import { dirname } from "node:path";
 import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
 import type { AdapterKind, Character, Enemy, EnemyKind, JobLine, QuestType, World } from "./types.ts";
@@ -90,13 +90,19 @@ const [cmd, ...rest] = positionals;
 
 
 function parseCriteria(list: string[] = [], checks: string[] = []): Enemy["criteria"] {
-  const checkMap = new Map(checks.map((c) => [c.slice(0, c.indexOf("=")), c.slice(c.indexOf("=") + 1)]));
-  return list.map((s, i) => {
+  const crit = list.map((s, i) => {
     const colon = s.indexOf(":");
-    const id = colon > 0 ? s.slice(0, colon).trim() : `c${i + 1}`;
-    const description = colon > 0 ? s.slice(colon + 1).trim() : s;
-    return { id, description, check: checkMap.get(id), met: false };
+    return { id: colon > 0 ? s.slice(0, colon).trim() : `c${i + 1}`, description: colon > 0 ? s.slice(colon + 1).trim() : s };
   });
+  // "--check c1=cmd" names its condition; a bare "--check cmd" goes to the condition in the same position
+  // (so "FOO=1 npm test" still works as a bare command).
+  const byId = new Map<string, string>(), byPos: string[] = [];
+  for (const c of checks) {
+    const eq = c.indexOf("=");
+    if (eq > 0 && crit.some((k) => k.id === c.slice(0, eq))) byId.set(c.slice(0, eq), c.slice(eq + 1));
+    else byPos.push(c);
+  }
+  return crit.map((k, i) => ({ ...k, check: byId.get(k.id) ?? byPos[i], met: false }));
 }
 
 async function main(): Promise<void> {
@@ -392,6 +398,13 @@ async function gate(): Promise<void> {
     return;
   }
   // Above its rank (not forbidden): pause and ask the Guild Master. Forbidden actions are never asked about.
+  // Desk jobs never ask, and nobody asks for more than one rank above their own.
+  const oneUp = c && decision.need && tierFor(decision.need) <= c.tier + 1 && process.env.SAVEPOINT_DESK !== "1";
+  if (c && decision.need && !oneUp) {
+    s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: false, reason: decision.reason });
+    console.log(denyOutput(cli, `${decision.reason} ${process.env.SAVEPOINT_DESK === "1" ? "This is a read-only job." : "That is more than one rank above yours, so it can't be asked for yet."} Describe what you would do instead.`));
+    return;
+  }
   if (c && decision.need) {
     const book = new AskBook(s.chronicleDir);
     const ask = book.create({ hero: id, quest, tool, move: m.move, target: m.target, need: decision.need, reason: decision.reason });
@@ -399,7 +412,7 @@ async function gate(): Promise<void> {
     const timeoutMs = (s.load().settings?.askTimeoutSec ?? 300) * 1000;
     const answer = await book.wait(ask.id, timeoutMs);
     s.event({ type: "answer", ask: ask.id, hero: id, decision: answer.decision, to: answer.to, expired: answer.status === "expired" });
-    if (answer.decision === "allow") return;
+    if (answer.decision === "allow") { console.log(allowOutput(cli, "Logged; it doesn't change anyone's trust.")); return; }
     const why = answer.status === "expired" ? "The Guild Master didn't answer in time, so the answer is no."
       : answer.decision === "handoff" ? `The Guild Master handed this to ${answer.to}. Write down what you'd do in your notes for them, then finish your part.`
       : "The Guild Master said no.";
@@ -416,9 +429,12 @@ async function stopGateCmd(): Promise<void> {
   const cli = hookCli();
   const id = process.env.SAVEPOINT_CHARACTER, home = process.env.SAVEPOINT_HOME, questId = process.env.SAVEPOINT_QUEST;
   const raw = await readStdin();
-  if (!id || !home || !questId) { console.log("{}"); return; }
-  const quest = new Store(dirname(home)).load().enemies.find((e) => e.id === questId);
-  if (!quest) { console.log("{}"); return; }
+  if (!id || !home || !questId || process.env.SAVEPOINT_DESK === "1") { console.log("{}"); return; }
+  const w = new Store(dirname(home)).load();
+  const quest = w.enemies.find((e) => e.id === questId);
+  const hero = w.party.find((c) => c.id === id);
+  // Only send back a hero who can write, or can at least ask to: pushing anyone else just wastes turns.
+  if (!quest || !hero || hero.tier + 1 < tierFor("write")) { console.log("{}"); return; }
   const event = JSON.parse(raw || "{}") as { cwd?: string };
   const r = await stopGate({ home, quest, characterId: id, cwd: event.cwd ?? process.cwd() });
   console.log(r.keepGoing ? keepGoingOutput(cli, r.reason) : "{}");

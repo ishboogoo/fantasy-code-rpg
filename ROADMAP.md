@@ -53,7 +53,7 @@ The full design is in **[docs/UX_PLAN.md](docs/UX_PLAN.md)**; its §11 "launch s
 | ✅ `savepoint play`: local web server + live game event stream (SSE) + first battle screen | 🐗 | Binds to 127.0.0.1 with a one-time token |
 | Port the prototype Hero/Foe generators to `assets/` + a sprite-sheet compositor | 🐗 | Style rules enforced in code |
 | ✅ Launch slice: Title, Guild Town, Guild Counter, Quest Board, War Room, live battle, Treasure Vault, Tavern, Inn, Library, Settings (EN/JA) | 🐲 | Wait mode included |
-| ✅ Gatekeeper **allow once / deny / hand off** (Wait mode) in all three CLIs | 👺 | Logged, no reliability penalty |
+| ✅ Gatekeeper **allow once / deny / hand off** (Wait mode) in all three CLIs | 👺 | Logged, no reliability penalty. Verified on a real Claude Code 2.1.309 install: ask → allow → victory, ask → deny → retreat, Tier 1 writes without asking. Heroes ask for one rank up only |
 | World Map from the repo tree, with fog of war from agent reads | 🐗 | |
 | Atelier: AI-proposed parts + Style Gatekeeper + approval gallery | 🐲 | |
 | Original chiptune SFX pack wired to hook events | 👺 | Composers wanted |

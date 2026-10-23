@@ -33,6 +33,16 @@ const FORBIDDEN: Array<[RegExp, string]> = [
 
 export interface GateDecision { allow: boolean; need?: Need; reason: string }
 
+/** Commands that only look (no writing, no network, no running other programs). Any rank may run them. */
+const READ_ONLY_COMMANDS = /^(git\s+(log|status|diff|show|branch|ls-files|rev-parse|blame|grep)\b|ls|cat|head|tail|wc|grep|rg|find|pwd|echo|tree|file|stat|du|which|basename|dirname|sort|uniq|cut|sed\s+-n)\b/;
+
+/** True for a shell command made only of read-only parts: no redirection into files, no -exec / -delete, no in-place edits. */
+export function isReadOnlyCommand(command: string): boolean {
+  const cmd = command.replace(/2>\s*\/dev\/null/g, "").trim();
+  if (!cmd || />|\$\(|`|(^|\s)(-exec|-execdir|-delete|-fprint\w*|-ok|--output)\b|\bsed\b.*\s-i/.test(cmd)) return false;
+  return cmd.split(/\|\||&&|;|\|/).every((part) => READ_ONLY_COMMANDS.test(part.trim()));
+}
+
 export function classify(toolName: string, input: Record<string, unknown>, p: Permissions): GateDecision {
   const command = typeof input.command === "string" ? input.command : "";
   const path = String(input.file_path ?? input.path ?? "");
@@ -51,6 +61,7 @@ export function classify(toolName: string, input: Record<string, unknown>, p: Pe
     return p.network ? { allow: true, reason: "network" } : { allow: false, need: "network", reason: "Network access unlocks at Tier 3." };
   }
   if (toolName === "Bash") {
+    if (isReadOnlyCommand(command)) return { allow: true, reason: "read-only command" };
     if (!p.exec) return { allow: false, need: "exec", reason: "Running commands unlocks at Tier 2." };
     for (const [re, need, why] of COMMAND_RULES) {
       if (re.test(command) && !p[need]) return { allow: false, need, reason: `Not yet permitted: ${why}.` };

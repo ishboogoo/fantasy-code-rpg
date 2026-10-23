@@ -51,6 +51,16 @@ export function denyOutput(cli: HookCli, reason: string): string {
   return JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: text } });
 }
 
+/**
+ * What to print when you allowed a tool call once in Wait mode. An explicit "allow" (not silence) is needed,
+ * because the CLI's own tool list for a lower rank would otherwise still refuse the call.
+ */
+export function allowOutput(cli: HookCli, reason: string): string {
+  const text = `The Guild Master allowed this once. ${reason}`;
+  if (cli === "gemini") return JSON.stringify({ decision: "allow", reason: text });
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", permissionDecisionReason: text } });
+}
+
 /** What to print to refuse a stop and keep the hero working. */
 export function keepGoingOutput(cli: HookCli, reason: string): string {
   return JSON.stringify(cli === "gemini" ? { decision: "deny", reason } : { decision: "block", reason });

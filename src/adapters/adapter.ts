@@ -18,6 +18,8 @@ export interface AdapterRequest {
   home?: string;
   /** The quest being fought, so the stop hook knows which checks to run. */
   questId?: string;
+  /** Read-only desk work (Clerk, Scout, Planner, judges): never asks to go beyond reading. */
+  desk?: boolean;
 }
 
 export interface AdapterResult {

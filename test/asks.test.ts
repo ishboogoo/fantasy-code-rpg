@@ -57,7 +57,7 @@ test("the real hook pauses the hero until you allow it once, with no penalty", a
   const run = gate(dir, "novice", { tool_name: "Edit", tool_input: { file_path: "src/a.ts" } });
   const book = new AskBook(store.chronicleDir);
   book.decide(await nextAsk(book), "allow");
-  assert.equal((await run.done).trim(), "", "allowed: the hook stays silent");
+  assert.match(await run.done, /"permissionDecision":"allow"/, "allowed once: an explicit allow, so the CLI's own tool list doesn't block it");
   assert.equal(store.violationCount("novice"), 0, "asking is not a violation");
 });
 

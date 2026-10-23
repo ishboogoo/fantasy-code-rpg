@@ -176,4 +176,9 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 5. ✅ **Battle event stream** and the first browser screen: `savepoint play` shows the live battle (moves, save points, damage, verdict), the party, the Quest Board (Q) and the Treasure Vault (V) with Keep / Undo / Approve. `--demo` stages a simulated party.
 6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. ✅ "No proof, no victory" stop hook in all three CLIs.
 7. ✅ **Debrief**: lessons into the lore after every battle; your undo reasons become house rules.
-8. ✅ **Launch scenes in the browser**: Title, Guild Town, Guild Counter, Quest Board, War Room, Battlefield, Treasure Vault, Tavern, Inn, Library and Settings, in English and Japanese. ✅ The Decision window: a hero above its rank pauses and asks (allow once / deny / hand to another hero), from any scene or the command line.
+8. ✅ **Launch scenes in the browser**: Title, Guild Town, Guild Counter, Quest Board, War Room, Battlefield, Treasure Vault, Tavern, Inn, Library and Settings, in English and Japanese. ✅ The Decision window: a hero reaching one rank above its own pauses and asks (allow once / deny / hand to another hero), from any scene or the command line.
+9. ✅ **Pincer formation**: two approaches in two copies at once; checks decide first, then an order-swapped cross-company vote; a split keeps both for you.
+10. ✅ **Real install check, Claude Code** (2.1.309): a novice asks to write → you allow → victory; you deny → retreat, not a loss; a Tier 1 hero writes without asking. Fixes from this run: heroes ask for one rank up only, desk jobs never ask, read-only commands count as reading, no free judge means you decide, lessons stay about the project. Codex and Gemini CLI still need the same check on real installs.
+11. **Siege**: split a big quest into sub-quests fought in parallel, each in its own copy, merged at the Vault.
+12. **The Seer for risk and "stuck" decisions**: when to stop, retreat or call for help.
+13. **Public release**: trademark check for "Fantasy Code RPG", licence review, contributor guide, tagged release.

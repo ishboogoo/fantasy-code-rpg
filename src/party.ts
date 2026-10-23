@@ -1,6 +1,6 @@
 // Party recommendation: for each quest, suggest who should fight, who should back them up,
 // and who should judge, then let the player swap anyone and explain the trade-offs in plain words.
-import type { AdapterKind, Character, Enemy, JobLine, Permissions, World } from "./types.ts";
+import type { AdapterKind, Character, Enemy, JobLine, Permissions, Tier, World } from "./types.ts";
 import { JOB_TITLES, WEAKNESS, permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { QUEST_TYPES, questTypeOf } from "./quests.ts";
@@ -115,7 +115,9 @@ export function checkParty(world: World, e: Enemy, picks: Array<{ id: string; ro
     if (!available(c)) w.push(`${c.name} can't fight right now (resting, out of MP, or not trusted with this tool yet).`);
   }
   const lc = lead && get(lead.id);
-  if (lc && !permissionsFor(lc.tier)[need(e)]) w.push(`${lc.name} isn't trusted to ${need(e) === "exec" ? "run commands" : "change files"} yet, so they can only look and suggest. Pick a higher rank to lead.`);
+  if (lc && !permissionsFor(lc.tier)[need(e)]) w.push(permissionsFor(Math.min(4, lc.tier + 1) as Tier)[need(e)]
+    ? `${lc.name} isn't trusted to ${need(e) === "exec" ? "run commands" : "change files"} yet, so they'll stop and ask you each time.`
+    : `${lc.name} isn't trusted to ${need(e) === "exec" ? "run commands" : "change files"} yet, so they can only look and suggest. Pick a higher rank to lead.`);
   const jc = judge && get(judge.id);
   if (!jc) w.push("No judge: the result will be checked only by tests you wrote, or by you.");
   else if (lc && vendor(jc.adapter) === vendor(lc.adapter)) w.push(`${jc.name} and ${lc.name} come from the same AI company. A judge from a different one catches more mistakes.`);

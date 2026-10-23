@@ -48,7 +48,7 @@ flowchart LR
 | `src/economy.ts` | Gold treasury, MP refill windows. | no — pure |
 | `src/store.ts` | `.savepoint/` files: world state + the Chronicle. | files |
 | `src/adapters/*` | Turn "character + permissions + prompt" into a process or HTTP call. | processes, network |
-| `src/gate.ts` | The Gatekeeper: classifies each tool call against the character's tier. | no — pure |
+| `src/gate.ts` | The Gatekeeper: classifies each tool call against the character's tier; read-only shell commands count as reading. | no — pure |
 | `src/quests.ts` | The six quest types and their defaults; the Law's keyword classifier. | no — pure |
 | `src/council.ts` | The Council: decision cascade (Law → Ledger → Seer → Trial → You), decision records and outcomes, Thompson-sampling maths. | `chronicle/decisions.jsonl`, `outcomes.jsonl` |
 | `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
@@ -85,7 +85,7 @@ A Mage on the API can write a plan, a Fighter on Claude Code can implement it, a
 
 | Adapter | Mechanism |
 |---|---|
-| claude-code | **Gatekeeper hook** (`src/gate.ts`) checks every tool call via Claude Code's `PreToolUse` hook, plus `--allowedTools` per tier as a second wall |
+| claude-code | **Gatekeeper hook** (`src/gate.ts`) checks every tool call via Claude Code's `PreToolUse` hook. Battle heroes get `--allowedTools` for one rank above their own with `--permission-mode dontAsk`, so the hook can ask you; desk jobs run in `plan` mode and never ask. Verified on Claude Code 2.1.309 |
 | codex | `--sandbox read-only` / `workspace-write` (+ network config at T3), plus the same Gatekeeper through Codex hooks (`-c hooks.PreToolUse`, `hooks.Stop`) |
 | gemini-cli | `--approval-mode` default / auto_edit / yolo, `--sandbox` once exec is allowed, plus the same Gatekeeper through Gemini hooks (`BeforeTool`, `AfterAgent`) |
 | anthropic-api, openai-compatible | Text only — they can't act on the world at any tier yet |

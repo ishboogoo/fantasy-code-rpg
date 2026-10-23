@@ -8,6 +8,8 @@
 import type { Adapter, AdapterRequest, AdapterResult } from "./adapter.ts";
 import { runProcess } from "./adapter.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { permissionsFor } from "../rules.ts";
+import type { Tier } from "../types.ts";
 import { claudeHooks, codexHookArgs, geminiHooks, type HookCommands } from "../hooks.ts";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +32,7 @@ function hookSettings(home: string, name: string, settings: Record<string, unkno
 
 /** Tells the hooks who is acting, on which quest, and where the harness keeps its records. */
 function hookEnv(req: AdapterRequest): NodeJS.ProcessEnv {
-  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "" };
+  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "", SAVEPOINT_DESK: req.desk ? "1" : "" };
 }
 
 function billing(req: AdapterRequest): "subscription" | "api" {
@@ -42,14 +44,15 @@ export const claudeCode: Adapter = {
   kind: "claude-code",
   enforcement: "Per-tool-call Gatekeeper hook + tool allowlist per tier (most precise adapter)",
   async run(req) {
-    const p = req.permissions;
-    const tools = ["Read", "Grep", "Glob"];
-    if (p.write) tools.push("Edit", "Write");
-    if (p.exec) tools.push("Bash");
+    // Wait mode: a fighting hero gets the tools of one rank above its own, and the Gatekeeper hook pauses and
+    // asks you before any of those runs. Two ranks up stays out of reach entirely. Desk jobs stay read-only.
+    // Checked against Claude Code 2.1.309: -p, --output-format json, --max-turns, --permission-mode, --allowedTools, --settings <file>.
+    const p = req.desk || !req.home ? req.permissions : permissionsFor(Math.min(4, req.character.tier + 1) as Tier);
+    const tools = ["Read", "Grep", "Glob", "Bash"]; // Bash: the Gatekeeper lets read-only commands through at any rank
+    if (p.write) tools.push("Edit", "Write", "MultiEdit");
     if (p.network) tools.push("WebFetch", "WebSearch");
-    // VERIFY: flag names against `claude --help`.
     const args = ["-p", req.prompt, "--output-format", "json", "--max-turns", String(req.maxTurns)];
-    if (!p.write) args.push("--permission-mode", "plan");
+    args.push("--permission-mode", req.desk || !p.write ? "plan" : "dontAsk");
     args.push("--allowedTools", tools.join(","));
     if (req.character.model) args.push("--model", req.character.model);
     // Fine-grained enforcement: every tool call is checked by the Gatekeeper hook.

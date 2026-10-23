@@ -95,7 +95,7 @@ Every task is an enemy. Its **type** determines which jobs have the advantage.
 - **Victory** — all HP depleted
 - **Retreat** — partial; some criteria met, character gave up or ran out of turns
 - **Defeat** — nothing met, or something broke
-- **Critical failure** — broke existing tests, overspent, or tried a forbidden action. (Trying something merely above its rank pauses the hero and asks you instead: Wait mode. Asking is never a failure.)
+- **Critical failure** — broke existing tests, overspent, or tried a forbidden action. (Trying something one rank above its own pauses the hero and asks you instead: Wait mode. Two or more ranks up is simply refused. Asking is never a failure, and a battle lost because you said no is a retreat.)
 
 Type advantage exists to make **routing** part of the game: sending the Bard to fight a Wyvern still works, but the right class earns more.
 

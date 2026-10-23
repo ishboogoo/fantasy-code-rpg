@@ -39,6 +39,12 @@ export const TIER_RULES: Record<Tier, TierRule> = {
 
 export const CURSE_MARGIN = 0.1;
 
+/** The lowest rank at which a permission unlocks. */
+export function tierFor(need: keyof Permissions): Tier {
+  for (const t of [0, 1, 2, 3, 4] as Tier[]) if (permissionsFor(t)[need]) return t;
+  return 4;
+}
+
 export function permissionsFor(tier: Tier): Permissions {
   return {
     read: true,
