@@ -46,3 +46,13 @@ test("Claude Code's PowerShell tool follows the same rules as Bash", async () =>
   assert.equal(isReadOnlyCommand("Get-Content README.md"), true);
   assert.equal(isReadOnlyCommand("Remove-Item -Recurse src"), false);
 });
+
+test("Windows commands can't reach the guild's records, the network or a drive root without the rank", () => {
+  const t2 = permissionsFor(2), t4 = permissionsFor(4);
+  assert.equal(classify("Bash", { command: "Set-Content .fcrpg\\world.json '{}'" }, t4).allow, false, "backslash path to the records");
+  assert.equal(classify("Bash", { command: "Invoke-WebRequest https://example.com" }, t2).allow, false);
+  assert.equal(classify("Bash", { command: "Invoke-WebRequest https://example.com" }, t2).need, "network");
+  assert.equal(classify("Bash", { command: "Remove-Item -Recurse -Force C:\\" }, t4).allow, false);
+  assert.equal(classify("Bash", { command: "Remove-Item -Recurse -Force $env:USERPROFILE" }, t4).allow, false);
+  assert.ok(classify("Bash", { command: "Remove-Item -Recurse .\\build" }, t2).allow, "ordinary deletes in the project still work at Tier 2");
+});
