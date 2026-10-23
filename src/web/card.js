@@ -123,7 +123,7 @@
         // Proof and credit.
         var proof = c.proofCount ? G.t('cardProof', { n: c.proofCount }) + (c.proof[0] && c.proof[0].repo ? ' · ' + c.proof[0].repo.replace(/^https:\/\//, '') : '') : G.t('cardNoProof');
         text(g, fit(g, proof, 528, 16), 36, H - 62, 16, '#a8b4c8');
-        text(g, 'Fantasy Code RPG · npx fantasy-code-rpg', W - 36, H - 34, 16, '#7dff9a', 'right');
+        text(g, '#fcrpg · npx fantasy-code-rpg', W - 36, H - 34, 16, '#7dff9a', 'right');
         if (c.veteran) text(g, G.t('cardVeteran'), 36, H - 34, 16, '#ffe090');
         return cv;
       });

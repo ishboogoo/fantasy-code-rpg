@@ -1,8 +1,13 @@
 # Fantasy Code RPG
 
-![Fantasy Code RPG key art](assets/brand/cover.png)
+[![npm](https://img.shields.io/npm/v/fantasy-code-rpg?color=1f8a3c)](https://www.npmjs.com/package/fantasy-code-rpg)
+[![CI](https://github.com/ishboogoo/fantasy-code-rpg/actions/workflows/ci.yml/badge.svg)](https://github.com/ishboogoo/fantasy-code-rpg/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1f8a3c)](LICENSE)
+[![Good first issues](https://img.shields.io/github/issues/ishboogoo/fantasy-code-rpg/good%20first%20issue?label=good%20first%20issues&color=7dff9a)](https://github.com/ishboogoo/fantasy-code-rpg/contribute)
 
 **A 90s-RPG harness for AI agent teams. Agents earn autonomy by proving they're reliable.**
+
+![A quest in Fantasy Code RPG: the party is chosen in the War Room, fights the bug, and the result waits at the Treasure Vault](https://raw.githubusercontent.com/ishboogoo/fantasy-code-rpg/main/docs/media/demo.gif)
 
 The game is *Fantasy Code RPG*; its command is `fcrpg`.
 
@@ -110,18 +115,17 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo; one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`fcrpg play`). Wait mode (heroes may ask for one rank above their own, verified on a real Claude Code install); the Seer, lessons and house rules in the Chronicle, and suggestions that learn from your picks. Pincer (two approaches, the better one wins) and Siege (a quest split into parts fought at once, then joined) formations; the Council flags risky quests and watches for stuck battles. 66 tests.
+**v0.2, alpha.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo; one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`fcrpg play`). Wait mode (heroes may ask for one rank above their own, verified on a real Claude Code install); the Seer, lessons and house rules in the Chronicle, and suggestions that learn from your picks. Pincer (two approaches, the better one wins) and Siege (a quest split into parts fought at once, then joined) formations; the Council flags risky quests and watches for stuck battles. Hero cards you can share and recruit from. 84 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild
 
-This is built in the open and needs heroes. See **[ROADMAP.md](ROADMAP.md)** for quests sized from 🟢 Slime (first PR) to 🐲 Dragon, and **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to claim one.
+This is built in the open and needs heroes.
 
-Wanted most: CLI adapter testers, a pixel-art web UI, an MCP server for the Chronicle, and game designers to balance the numbers.
-
-## License
-
-MIT
+- **First pull request?** Pick a [🟢 good first issue](https://github.com/ishboogoo/fantasy-code-rpg/contribute); each one says where to look and when it's done. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to claim it.
+- **Where it's going:** the [milestones](https://github.com/ishboogoo/fantasy-code-rpg/milestones), from Act II (safe to play for real) to 1.0, *The Airship*. Every quest, sized 🟢 Slime to 🐲 Dragon, is in [ROADMAP.md](ROADMAP.md).
+- **Questions, ideas, your hero cards:** [Discussions](https://github.com/ishboogoo/fantasy-code-rpg/discussions). Post screenshots and cards with **#fcrpg**.
+- **Wanted most:** Codex and Gemini CLI testers, artists for heroes, monsters and card art, and game designers to balance the numbers.
 
 ## Hero cards
 

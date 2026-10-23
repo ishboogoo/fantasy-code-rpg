@@ -45,8 +45,8 @@
           // A small credit in the corner, so a shared picture says where it came from.
           var fs = Math.max(12, Math.round(c.height / 40));
           g.font = fs + 'px DotGothic16, monospace'; g.textAlign = 'right'; g.textBaseline = 'bottom';
-          g.fillStyle = 'rgba(2,8,6,.75)'; g.fillText('Fantasy Code RPG · npx fantasy-code-rpg', c.width - fs * 0.6 + 2, c.height - fs * 0.5 + 2);
-          g.fillStyle = '#7dffa8'; g.fillText('Fantasy Code RPG · npx fantasy-code-rpg', c.width - fs * 0.6, c.height - fs * 0.5);
+          g.fillStyle = 'rgba(2,8,6,.75)'; g.fillText('Fantasy Code RPG · #fcrpg · npx fantasy-code-rpg', c.width - fs * 0.6 + 2, c.height - fs * 0.5 + 2);
+          g.fillStyle = '#7dffa8'; g.fillText('Fantasy Code RPG · #fcrpg · npx fantasy-code-rpg', c.width - fs * 0.6, c.height - fs * 0.5);
           stop();
           return new Promise(function (resolve) { c.toBlob(resolve, 'image/png'); });
         });
