@@ -2,6 +2,11 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.4]
+
+### Fixed
+- **Claude Code heroes on your plan can never bill API credits.** If `ANTHROPIC_API_KEY` is set on your computer, Claude Code could use it instead of your Claude plan. Heroes now run without it unless you recruited them with `--billing api`.
+
 ## [0.2.3]
 
 ### Changed

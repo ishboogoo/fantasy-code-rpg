@@ -1,6 +1,6 @@
 {
   "name": "fantasy-code-rpg",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A 90s-RPG harness for AI agent teams: Claude Code, Codex and Gemini CLI heroes earn autonomy by proving they're reliable.",
   "type": "module",
   "bin": {
