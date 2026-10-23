@@ -127,10 +127,23 @@ export function codexHookArgs(c: HookCommands): string[] {
 // ---------- Battle animation ----------
 
 /** Every tool call becomes a named move on the battle screen. */
-export function moveFor(cli: HookCli, toolName: string, input: Record<string, unknown>): { move: string; target: string } {
+export function moveFor(cli: HookCli, toolName: string, input: Record<string, unknown>, cwd?: string): { move: string; target: string } {
   const n = normalizeTool(cli, toolName, input);
   const path = String(n.input.file_path ?? n.input.path ?? n.input.pattern ?? "");
-  const short = (s: string) => (s.length > 48 ? "…" + s.slice(-47) : s);
+  // Paths inside the battle's copy are shown relative to it ("README.md", not the long copy folder).
+  const root = cwd ? cwd.replace(/[\\/]+$/, "") : "";
+  const rel = (s: string) => {
+    if (!root) return s;
+    const norm = (x: string) => x.replace(/\\/g, "/").toLowerCase();
+    let out = s, i: number;
+    while ((i = norm(out).indexOf(norm(root))) >= 0) {
+      let j = i + root.length;
+      if (out[j] === "/" || out[j] === "\\") j++;
+      out = out.slice(0, i) + (j === i + root.length ? "." : "") + out.slice(j);
+    }
+    return out || ".";
+  };
+  const short = (s: string) => { const r = rel(s); return r.length > 48 ? "…" + r.slice(-47) : r; };
   const cmd = String(n.input.command ?? "");
   if (/^(Read|Grep|Glob|LS)$/.test(n.tool)) return { move: "SCAN", target: short(path.split("\n")[0]) };
   if (/^(Edit|Write|MultiEdit|NotebookEdit)$/.test(n.tool)) {

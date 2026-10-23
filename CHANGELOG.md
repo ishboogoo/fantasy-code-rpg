@@ -2,13 +2,25 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
-## [Unreleased]
+## [0.2.7]
+
+### Added
+- **Battles you can watch.** Heroes step up and lunge at the enemy on every move, sparks fly, the enemy shakes when hit, flashes when it takes damage, and flickers away when defeated. A "…" bubble shows over whoever is working (a "?" while they wait for your answer), so the screen never looks frozen.
+- **Live enemy HP.** After each save point the automatic checks run, so the enemy's HP drops as conditions pass instead of all at the end. In a Pincer it shows whichever approach is ahead.
+- **The enemy heals** when a condition that passed fails again, and **rallies** when the Council has to call for help and the fight runs longer.
+- **HP and MP for every hero in battle.** HP is tries left (a Gatekeeper block or an error costs one); MP is turns left in this battle. Subscription heroes get bars too.
+- Japanese for the War Room's warnings and the Council's risk reasons, by @yoreva-01 (#10).
 
 ### Changed
+- A hero's portrait and battle sprite now share the same hair and skin colours (some heroes' colours change once).
+- File paths in battle are shown inside the project ("README.md"), not as the long folder of the battle's copy.
+- The War Room says plainly when every hero who could judge comes from the same AI company as the party.
 - Screenshots and hero cards carry the community hashtag **#fcrpg**, and the save message suggests sharing with it.
-- README: badges, a demo GIF of a whole quest, and a guide to joining (good first issues, milestones, Discussions).
+- README: badges, a demo GIF of a whole quest, a guide to joining, and a Controls section written by the guild's own heroes.
 
 ### Fixed
+- **Checks that ask "what changed?" work in battles.** Checks get `FCRPG_BASE`, the commit the battle started from; the Clerk is told to compare with it (a `git status` check could never pass once a save point committed the work) and to write checks that run on Windows.
+- A README edit was flagged as risky ("touches security"): security words now match whole ideas (login, passwords, API tokens, OAuth), not lookalikes such as "author".
 - In a Siege, a hero whose part changed nothing no longer earns proof on their card.
 
 ## [0.2.6]

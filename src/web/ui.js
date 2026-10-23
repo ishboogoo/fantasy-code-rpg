@@ -101,7 +101,16 @@
   var RACES = ['human', 'elf', 'dwarf', 'beastkin', 'lizardfolk', 'demonkin', 'automaton', 'fae'];
   G.RACES = RACES;
   function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-  G.look = function (c) { var h = hash(c.id); return { race: (c.look && c.look.race) || RACES[h % RACES.length], build: (c.look && c.look.build) || ((h >> 3) % 2 ? 'feminine' : 'masculine') }; };
+  // Hair and skin are chosen once here, from the hero's id, and given to both the portrait and the sprite.
+  var HAIRS = { fae: ['rose', 'ocean', 'arcane', 'forest', 'gold'], dwarf: ['ember', 'earth', 'steel', 'gold'], automaton: ['steel'] };
+  var SKINS = { lizardfolk: ['forest', 'ocean'], demonkin: ['demon'], automaton: ['steel'], fae: ['skin'] };
+  G.look = function (c) {
+    var h = hash(c.id), race = (c.look && c.look.race) || RACES[h % RACES.length];
+    var hairs = HAIRS[race] || ['gold', 'ember', 'ink', 'steel', 'rose', 'ocean', 'arcane', 'earth'];
+    var skins = SKINS[race] || ['skin', 'skin', 'umber', 'earth'];
+    return { race: race, build: (c.look && c.look.build) || ((h >> 3) % 2 ? 'feminine' : 'masculine'),
+      hair: hairs[(h >>> 5) % hairs.length], skin: skins[(h >>> 9) % skins.length] };
+  };
   G.paint = function (canvas, sprite, k, flip) {
     canvas.width = sprite.W * k; canvas.height = sprite.H * k;
     var x = canvas.getContext('2d');
@@ -113,11 +122,11 @@
   };
   G.heroCanvas = function (c, pose, k, flip) {
     var l = G.look(c);
-    return G.paint(G.el('canvas', 'px'), hero2({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, pose: pose || 'idle', cursed: (c.status || []).indexOf('cursed') >= 0 }), k || 3, flip);
+    return G.paint(G.el('canvas', 'px'), hero2({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, hair: l.hair, skin: l.skin, pose: pose || 'idle', cursed: (c.status || []).indexOf('cursed') >= 0 }), k || 3, flip);
   };
   G.portraitCanvas = function (c) {
     var l = G.look(c);
-    var cv = G.paint(G.el('canvas', 'px portrait'), portrait({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, mood: 'determined', age: 'adult', turn: '-1', gaze: 'ahead', facial: 'none', gear: 'none' }), 1);
+    var cv = G.paint(G.el('canvas', 'px portrait'), portrait({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, hair: l.hair, skin: l.skin, mood: 'determined', age: 'adult', turn: '-1', gaze: 'ahead', facial: 'none', gear: 'none' }), 1);
     cv.setAttribute('aria-label', c.name);
     return cv;
   };

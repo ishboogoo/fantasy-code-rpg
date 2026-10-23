@@ -60,7 +60,7 @@ The full design is in **[docs/UX_PLAN.md](docs/UX_PLAN.md)**; its §11 "launch s
 | World Map from the repo tree, with fog of war from agent reads | 🐗 | |
 | Atelier: AI-proposed parts + Style Gatekeeper + approval gallery | 🐲 | |
 | Original chiptune SFX pack wired to hook events | 👺 | Composers wanted |
-| Title screen, encounter wipes, damage numbers, victory fanfare via hooks | 👺 | Must never block the hook's decision |
+| Title screen, encounter wipes, ✅ damage numbers and battle motion (0.2.7: lunges, sparks, live HP, heals), victory fanfare via hooks | 👺 | Must never block the hook's decision |
 
 ## Side quests — mechanics from the classics (see docs/EXPERIENCE.md)
 
