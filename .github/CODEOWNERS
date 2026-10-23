@@ -1,0 +1,11 @@
+# Changes to these files need the maintainer's own approval, even when every check passes.
+# They decide what a hero may do, what a shared hero file can carry, and how releases are made.
+src/gate.ts          @ishboogoo
+src/hooks.ts         @ishboogoo
+src/rules.ts         @ishboogoo
+src/heroes.ts        @ishboogoo
+src/instance.ts      @ishboogoo
+src/adapters/        @ishboogoo
+.github/             @ishboogoo
+package.json         @ishboogoo
+package-lock.json    @ishboogoo
