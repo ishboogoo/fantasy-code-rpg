@@ -1,0 +1,51 @@
+name: "👾 Enemy design (a monster for a kind of task)"
+description: Propose a monster, and the kind of coding task it stands for
+labels: ["art", "design:enemy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        In Fantasy Code RPG every task is an enemy: a Slime is a typo, a Goblin a small bug, a Lich a flaky test.
+        A great monster *feels* like the task it stands for. Read [docs/ART_GUIDE.md](../blob/main/docs/ART_GUIDE.md) for the palette, sizes and rules.
+  - type: input
+    id: name
+    attributes: { label: "Monster name", placeholder: "e.g. Hydra, Nurikabe, Ouroboros" }
+    validations: { required: true }
+  - type: textarea
+    id: task
+    attributes:
+      label: What kind of task is it?
+      description: "Which real coding problem does it stand for, and why does the monster fit? e.g. Hydra = a bug that comes back with two heads when you fix it badly; Nurikabe = a wall you keep walking into (a blocker you can't see)."
+    validations: { required: true }
+  - type: textarea
+    id: battle
+    attributes:
+      label: How does it fight?
+      description: Which jobs is it weak to, how tough is it (level 1–20), any special behaviour (splits, hides, comes back)?
+  - type: textarea
+    id: look
+    attributes:
+      label: What does it look like?
+      description: Shape, colours from the palette, size (32, 48, 64 or 96 px), idle animation. It faces left, toward the party.
+    validations: { required: true }
+  - type: textarea
+    id: art
+    attributes: { label: "Sketches, references or pixel art", description: "Drag images here. Words are fine too." }
+  - type: dropdown
+    id: origin
+    attributes:
+      label: Where is it from?
+      options: ["My own invention", "Folklore or mythology (public domain)", "A mix"]
+    validations: { required: true }
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: The rules
+      options:
+        - label: It's original, or from public-domain folklore, and doesn't copy a monster from an existing game, film or book.
+          required: true
+        - label: I license my art and text here under CC-BY-4.0 (or CC0), so it can ship in the game with credit.
+          required: true
+  - type: input
+    id: credit
+    attributes: { label: "How should we credit you?", placeholder: "Name or handle, optional link" }
