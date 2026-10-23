@@ -2,6 +2,14 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.10]
+
+### Fixed
+- Leaving the party screen (S) returns to the exact screen you came from, such as the same hero card or the same quest's War Room.
+- "Merlin couldn't answer: claude reported an error" now says what happened and what to do: ran out of turns (try again or split the quest), hit a Claude usage limit (wait), or stopped with an error (try again).
+- Scouts and planners get more turns for bigger quests (9 at Lv 1, up to 30), so a big quest no longer runs them out of turns before they finish.
+- The Scout and the Planner no longer try to save their report to a file (blocked on read-only jobs, which showed up as "I couldn't save my notes…"); the whole report goes in their reply.
+
 ## [0.2.9]
 
 ### Added

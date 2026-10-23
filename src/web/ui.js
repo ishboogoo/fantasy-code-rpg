@@ -185,10 +185,11 @@
   G.go = function (name, params) {
     cleanups.forEach(function (f) { f(); }); cleanups = [];
     G.sceneEl.innerHTML = ''; activeMenu = null; sceneKey = null;
-    current = name; G.showRain(name !== 'title');
+    current = name; currentParams = params || {}; G.showRain(name !== 'title');
     G.pref('scene', name);
     return G.refresh().then(function () { G.scenes[name](params || {}); });
   };
+  var currentParams = {};
   G.current = function () { return current; };
   G.onKey = function (fn) { sceneKey = fn; };
   addEventListener('keydown', function (e) {
@@ -201,7 +202,7 @@
     if (activeMenu && activeMenu.key(e)) return;
     if ((e.key === 'Escape' || e.key === 'x' || e.key === 'X') && current !== 'title') { G.go(current === 'town' ? 'title' : 'town'); e.preventDefault(); }
     if ((e.key === 'b' || e.key === 'B') && current !== 'battle') G.go('battle');
-    if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && current !== 'title' && current !== 'party' && G.state && G.state.party.length) G.go('party', { from: current });
+    if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && current !== 'title' && current !== 'party' && G.state && G.state.party.length) G.go('party', { from: current, fromParams: currentParams });
   });
 
   // ---- Common bits ----
