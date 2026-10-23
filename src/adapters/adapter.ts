@@ -22,6 +22,8 @@ export interface AdapterRequest {
   criteria?: string[];
   /** Read-only desk work (Clerk, Scout, Planner, judges): never asks to go beyond reading. */
   desk?: boolean;
+  /** The commit the battle started from, given to checks as FCRPG_BASE ("what changed" = git diff against it). */
+  base?: string;
 }
 
 export interface AdapterResult {

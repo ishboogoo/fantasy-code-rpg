@@ -78,11 +78,13 @@ export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
   ].join("\n");
 }
 
-async function runChecks(enemy: Enemy, cwd: string): Promise<Set<string>> {
+/** Run the command checks. FCRPG_BASE is the commit the battle started from, so a check can ask what changed. */
+async function runChecks(enemy: Enemy, cwd: string, base?: string): Promise<Set<string>> {
   const met = new Set<string>();
+  const env = { ...process.env, FCRPG_BASE: base ?? "" };
   for (const k of enemy.criteria) {
     if (!k.check) continue;
-    const r = await runShell(k.check, { cwd, timeoutMs: 10 * 60_000 });
+    const r = await runShell(k.check, { cwd, timeoutMs: 10 * 60_000, env });
     if (r.code === 0) met.add(k.id);
   }
   return met;
@@ -127,7 +129,7 @@ export function chooseJudges(world: World, fighters: Character[], spec: JudgeSpe
 async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Character[], cwd: string, inst?: InstanceInfo): Promise<Verdict & { costGold: number; awaitingYou: string[] }> {
   const { world, store, judge, council } = opts;
   // 1. Run it: checks decide whatever they can, before any judge is asked.
-  const met = await runChecks(enemy, cwd);
+  const met = await runChecks(enemy, cwd, inst?.base);
   const awaitingYou = enemy.criteria.filter((k) => !k.met && proofOf(k) === "human").map((k) => k.id);
   const forJudges = enemy.criteria.filter((k) => !k.met && !k.check && proofOf(k) === "judge");
   let notes = met.size ? `Tests confirmed: ${[...met].join(", ")}.` : "";
@@ -201,7 +203,7 @@ async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Characte
 async function comparePincer(opts: BattleOptions, enemy: Enemy, leads: Character[], insts: InstanceInfo[], battleId: string):
   Promise<{ winner: 0 | 1; sure: boolean; reason: string }> {
   const { world, store } = opts;
-  const passed = await Promise.all(insts.map((i) => runChecks(enemy, i.path)));
+  const passed = await Promise.all(insts.map((i) => runChecks(enemy, i.path, i.base)));
   const diffs = await Promise.all(insts.map(async (i) => (await runProcess("git", ["diff", `${i.base}..HEAD`], { cwd: i.path, timeoutMs: 60_000 })).stdout.slice(0, 15_000)));
   const law = (): SeatAnswer<0 | 1> | null => passed[0].size === passed[1].size ? null
     : { answer: passed[0].size > passed[1].size ? 0 : 1, confidence: 1, reasons: [`Approach ${passed[0].size > passed[1].size ? "A" : "B"} passes more checks (${Math.max(passed[0].size, passed[1].size)} vs ${Math.min(passed[0].size, passed[1].size)})`] };
@@ -297,6 +299,21 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   let critical: string | null = null;
   const budgetGold = enemy.budget.gold ?? 1;
   const maxTurns = enemy.budget.maxTurns ?? 20;
+  emit({ type: "turn_limit", maxTurns });
+
+  // Live HP: after each save point the automatic checks run in that copy, so the enemy's HP drops as
+  // conditions pass, and it heals if a condition that passed breaks again.
+  const withChecks = enemy.criteria.filter((k) => k.check);
+  const lastHp = new Map<string, number>();
+  const progress = async (where: string, heroId: string, copy: string, base?: string): Promise<Set<string>> => {
+    const met = await runChecks(enemy, where, base);
+    const hp = enemy.criteria.filter((k) => !k.met && !met.has(k.id)).length;
+    const prev = lastHp.get(copy) ?? hpLeft();
+    lastHp.set(copy, hp);
+    emit({ type: "progress", hero: heroId, copy, hp, maxHp: enemy.criteria.length, change: hp - prev, passing: [...met] });
+    if (hp > prev) say(`  💚 ${enemy.name} recovers ${hp - prev} HP: a condition that passed fails again.`);
+    return met;
+  };
 
   let pincerLoser: Character | undefined;
   let contributors: string[] | undefined, alternateBy: string[] | undefined;
@@ -313,12 +330,13 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       const goldLimit = Math.min((budgetGold - costGold) / 2, perms.maxGoldPerBattle);
       emit({ type: "turn", hero: c.id });
       const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store) + `\n\nYou are approach ${label}; another hero is trying their own approach separately. Do your best version.`,
-        cwd: where.path, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
+        cwd: where.path, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id, base: where.base });
       spend(world, c, r.costGold, r.costMp);
       costGold += r.costGold; costMp += r.costMp; turns += r.turns;
       store.writeScroll(enemy.id, `${c.name} (${title(c)}, approach ${label})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
       const sp = await savePoint(where, `${c.name} approach ${label} on ${enemy.id}`);
-      if (sp) emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) });
+      emit({ type: "turn_end", hero: c.id });
+      if (sp) { emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) }); if (withChecks.length) await progress(where.path, c.id, label, where.base); }
       return r;
     };
     const [ra, rb] = await Promise.all([runOne(a, inst, "A"), runOne(b2, instB, "B")]);
@@ -356,12 +374,13 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       emit({ type: "turn", hero: hero.id, part: part.id });
       const before = store.violationCount(hero.id);
       const r = await ADAPTERS[hero.adapter].run({ character: hero, prompt: buildPrompt(hero, enemy, store) + siegeBrief(enemy, part, assign.filter((a) => a.part !== part)),
-        cwd: where.path, permissions: perms, maxTurns, goldLimit: Math.min(goldEach, perms.maxGoldPerBattle), home: store.root, questId: enemy.id, criteria: part.criteria });
+        cwd: where.path, permissions: perms, maxTurns, goldLimit: Math.min(goldEach, perms.maxGoldPerBattle), home: store.root, questId: enemy.id, criteria: part.criteria, base: where.base });
       if (store.violationCount(hero.id) - before > 0 && !r.violation) r.violation = "was stopped by the Gatekeeper";
       spend(world, hero, r.costGold, r.costMp);
       costGold += r.costGold; costMp += r.costMp; turns += r.turns;
       store.writeScroll(enemy.id, `${hero.name} (${title(hero)}, part: ${part.name})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
       const sp = await savePoint(where, `${hero.name} (${part.name}) on ${enemy.id}`);
+      emit({ type: "turn_end", hero: hero.id });
       if (sp) emit({ type: "save_point", hero: hero.id, sha: sp.slice(0, 8) });
       return { part, hero, where, r };
     }));
@@ -386,9 +405,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
 
   // The Council's watch over a Relay: after each turn, is the party getting somewhere?
   const watch = opts.council && opts.formation !== "pincer" && opts.formation !== "siege";
-  const withChecks = enemy.criteria.filter((k) => k.check);
   const allByChecks = withChecks.length > 0 && withChecks.length === enemy.criteria.length;
-  let passing = watch && withChecks.length ? (await runChecks(enemy, fightDir)).size : 0;
+  let passing = watch && withChecks.length ? (await runChecks(enemy, fightDir, inst?.base)).size : 0;
   let idleStreak = 0, turnNo = 0;
   const calls: Array<{ id: string; call: StuckCall }> = [];
   const acted = new Set<string>();
@@ -401,7 +419,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     say(`  ${c.name} the ${title(c)} acts…`);
     emit({ type: "turn", hero: c.id });
     const before = store.violationCount(c.id);
-    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: fightDir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
+    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: fightDir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id, base: inst?.base });
     let changed = false;
     acted.add(c.id);
     const blocked = store.violationCount(c.id) - before;
@@ -413,6 +431,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       const sp = await savePoint(inst, `${c.name} (${title(c)}) on ${enemy.id}`);
       if (sp) { changed = true; say(`  💾 Save point ${sp.slice(0, 8)}`); emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) }); }
     }
+    emit({ type: "turn_end", hero: c.id });
+    const metNow = changed && withChecks.length ? await progress(fightDir, c.id, "main", inst?.base) : undefined;
     if (r.violation) { critical = `${c.name} ${r.violation}`; say(`  ⚠️  ${critical}`); break; }
     if (r.error) say(`  ✖ ${r.error}`);
     // Wait mode: if you handed this hero's job to someone else, they take the next turn.
@@ -431,7 +451,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     turnNo++;
     idleStreak = changed ? 0 : idleStreak + 1;
     const passBefore = passing;
-    if (changed && withChecks.length) passing = (await runChecks(enemy, fightDir)).size;
+    if (metNow) passing = metNow.size;
     // Every condition is proven by a check and all pass: the rest of the party stands down.
     if (allByChecks && passing === withChecks.length) { if (party.indexOf(c) < party.length - 1) say("  ✅ Every check passes, so the rest of the party stands down."); break; }
     const need = QUEST_TYPES[questTypeOf(enemy)].needs;
@@ -456,6 +476,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       refillMp(helper);
       party.splice(party.indexOf(c) + 1, 0, helper); // the helper takes the very next turn
       say(`  📯 The Council calls for help: ${verdictCall.why}. ${helper.name} the ${title(helper)} joins.`);
+      emit({ type: "rally", hero: helper.id, why: verdictCall.why }); // the fight runs longer: the enemy rallies
       store.writeScroll(enemy.id, "The Council", `${helper.name} joins after turn ${turnNo}: ${verdictCall.why}. Read the notes above.`);
     }
   }

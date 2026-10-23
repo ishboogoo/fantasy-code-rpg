@@ -86,6 +86,10 @@ function hero2(pr) {
   if (race === 'demonkin') skin = [P.ink[2], P.ink[3], P.steel[1], P.steel[2]];
   if (race === 'automaton') { skin = P.steel; hair = P.steel; }
   if (race === 'dwarf') hair = pick([P.ember, P.earth, P.steel, P.gold]);
+  // A hero's colours can be chosen by the caller, so their portrait and battle sprite always match.
+  var named = function (n) { return n === 'demon' ? [P.ink[2], P.ink[3], P.steel[1], P.steel[2]] : P[n]; };
+  if (pr.hair && named(pr.hair)) hair = named(pr.hair);
+  if (pr.skin && named(pr.skin)) skin = named(pr.skin);
   var robe = pick([P.arcane, P.ocean]);
   var white = [P.steel[0], P.steel[1], P.steel[2], P.steel[3]];
   // Novices wear a plain undyed tunic in grey-green, so they never read as bare skin.

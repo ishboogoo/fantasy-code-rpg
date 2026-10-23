@@ -37,7 +37,7 @@ function hookSettings(home: string, name: string, settings: Record<string, unkno
 
 /** Tells the hooks who is acting, on which quest, and where the harness keeps its records. */
 function hookEnv(req: AdapterRequest): NodeJS.ProcessEnv {
-  return { ...process.env, FCRPG_CHARACTER: req.character.id, FCRPG_HOME: req.home ?? "", FCRPG_QUEST: req.questId ?? "", FCRPG_DESK: req.desk ? "1" : "", FCRPG_CRITERIA: req.criteria?.join(",") ?? "" };
+  return { ...process.env, FCRPG_CHARACTER: req.character.id, FCRPG_HOME: req.home ?? "", FCRPG_QUEST: req.questId ?? "", FCRPG_DESK: req.desk ? "1" : "", FCRPG_CRITERIA: req.criteria?.join(",") ?? "", FCRPG_BASE: req.base ?? "" };
 }
 
 function billing(req: AdapterRequest): "subscription" | "api" {

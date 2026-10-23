@@ -73,6 +73,10 @@ function portrait(pr) {
   if (race === 'beastkin') { slit = rnd() < 0.6; eye = pick([P.gold, P.forest, P.ocean]); }
   if (race === 'fae') { hair = pick([P.rose, P.ocean, P.arcane, P.forest, P.gold]); skin = P.skin; }
   if (race === 'dwarf') { hair = pick([P.ember, P.earth, P.steel, P.gold, P.ink]); }
+  // A hero's colours can be chosen by the caller, so their portrait and battle sprite always match.
+  var named = function (n) { return n === 'demon' ? [P.ink[2], P.ink[3], P.steel[1], P.steel[2]] : P[n]; };
+  if (pr.hair && named(pr.hair)) hair = named(pr.hair);
+  if (pr.skin && named(pr.skin)) skin = named(pr.skin);
   // Personality traits
   var build = pr.build || pick(['feminine', 'masculine']);
   var fem = build === 'feminine';

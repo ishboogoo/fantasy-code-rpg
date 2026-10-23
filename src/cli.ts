@@ -463,11 +463,11 @@ async function gate(): Promise<void> {
   if (!id || !home) return;
   const s = new Store(dirname(home));
   const c = s.load().party.find((x) => x.id === id);
-  const event = JSON.parse(raw || "{}") as { tool_name?: string; tool_input?: Record<string, unknown> };
+  const event = JSON.parse(raw || "{}") as { tool_name?: string; tool_input?: Record<string, unknown>; cwd?: string };
   const tool = event.tool_name ?? "unknown";
   const decision = c ? decideTool(cli, tool, event.tool_input ?? {}, permissionsFor(c.tier))
     : { allow: false, reason: `Unknown character ${id}.` };
-  const m = moveFor(cli, tool, event.tool_input ?? {});
+  const m = moveFor(cli, tool, event.tool_input ?? {}, event.cwd ?? process.cwd());
   const quest = process.env.FCRPG_QUEST || undefined;
   if (decision.allow) {
     s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: true });
