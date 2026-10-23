@@ -89,6 +89,22 @@ fcrpg seer <hero>             # seat a cheap, fast hero as the Council's Seer
 
 Every battle runs in **its own copy of your project** (a git worktree), with a save point after each hero's turn. Nothing touches your folder until you choose Keep.
 
+## Controls
+
+The browser game plays with the keyboard, like an old console RPG. The mouse works too.
+
+| Key | What it does |
+|---|---|
+| Arrow keys ↑ ↓ ← → | Move the ▶ cursor in a menu, skipping greyed-out items. In Guild Town, jump to the nearest building in that direction. On the Quest Board, ← → change quest |
+| Tab / Shift+Tab | Guild Town only: next / previous building |
+| Enter or Z | Pick the menu item, enter the building, or open the quest |
+| Esc or X | Go back to Guild Town. From town, go back to the title screen. Does nothing on the title screen |
+| B | Go to battle, from any screen (the title screen too) |
+| V | Battle screen only: open the Treasure Vault |
+| P | Take a snapshot of the screen, from anywhere. Ignored while Ctrl, ⌘ or Alt is held, so Ctrl+P still prints |
+
+While you type in a text box or drop-down, no shortcuts run and Esc just leaves the field. While a confirm box is open, only the arrows and Enter/Z work, but P still takes a snapshot.
+
 ## The world in one table
 
 | Game | Reality |
