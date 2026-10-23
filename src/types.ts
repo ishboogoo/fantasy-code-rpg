@@ -54,6 +54,8 @@ export interface Enemy {
   phases?: Enemy[];           // bosses only
   /** Regression guard: a command that must still pass after the battle (e.g. the full test suite). Failing it = critical. */
   guard?: string;
+  /** What the quest needs a hero to be allowed to do. Defaults to "write". Drives party recommendations. */
+  needs?: "read" | "write" | "exec";
   status: "lurking" | "engaged" | "defeated" | "fled";
 }
 

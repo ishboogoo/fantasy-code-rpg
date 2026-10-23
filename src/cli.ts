@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "./store.ts";
 import { battle, type JudgeSpec } from "./battle.ts";
+import { recommendParty, checkParty, type Role } from "./party.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { classify } from "./gate.ts";
@@ -26,7 +27,8 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
                      [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
   savepoint spawn --file quest.json            Spawn enemies from a JSON file
   savepoint enemies                            Show the bestiary
-  savepoint battle <enemy-id> --party a,b [--judge tests|auto|<character>]
+  savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
+  savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
@@ -134,13 +136,36 @@ async function main(): Promise<void> {
     }
     case "battle": {
       const enemyId = rest[0];
-      const partyIds = (values.party ?? "").split(",").filter(Boolean);
-      if (!enemyId || !partyIds.length) throw new Error("Usage: battle <enemy-id> --party a,b [--judge tests|auto|<id>]");
-      const j = values.judge ?? "auto";
+      if (!enemyId) throw new Error("Usage: battle <enemy-id> [--party a,b] [--judge tests|auto|<id>]");
+      const foe = world.enemies.find((e) => e.id === enemyId);
+      let partyIds = (values.party ?? "").split(",").filter(Boolean);
+      let j = values.judge ?? "auto";
+      if (foe && !partyIds.length) {
+        const plan = recommendParty(world, foe);
+        partyIds = plan.members.filter((m) => m.role !== "judge").map((m) => m.id);
+        const pj = plan.members.find((m) => m.role === "judge");
+        if (!values.judge && pj) j = pj.id;
+        console.log(`Recommended party: ${plan.members.map((m) => `${m.name} (${m.role})`).join(", ")}`);
+      } else if (foe) {
+        const picks: Array<{ id: string; role: Role }> = partyIds.map((id, i) => ({ id, role: i === 0 ? "lead" : "support" }));
+        if (j !== "auto" && j !== "tests") picks.push({ id: j, role: "judge" });
+        for (const wmsg of checkParty(world, foe, picks)) console.log(`⚠ ${wmsg}`);
+      }
+      if (!partyIds.length) throw new Error("Nobody in your guild can take this quest yet. Recruit or rest first.");
       const judge: JudgeSpec = j === "tests" ? { kind: "tests" } : j === "auto" ? { kind: "auto" } : { kind: "character", id: j };
       const r = await battle({ world, store, enemyId, partyIds, judge, cwd, onEvent: (l) => console.log(l) });
       save();
       console.log(reportScreen(world, r));
+      return;
+    }
+    case "suggest": {
+      const foe = world.enemies.find((e) => e.id === rest[0]);
+      if (!foe) throw new Error("Usage: suggest <enemy-id>");
+      const plan = recommendParty(world, foe);
+      console.log(`Recommended party for ${foe.name}:`);
+      for (const m of plan.members) console.log(`  ${m.role.toUpperCase().padEnd(8)} ${m.name}${m.reasons.length ? " · " + m.reasons.join("; ") : ""}`);
+      for (const wmsg of plan.warnings) console.log(`  ⚠ ${wmsg}`);
+      console.log(`Swap anyone: savepoint battle ${foe.id} --party <lead>,<support> --judge <name>`);
       return;
     }
     case "lore": store.addLore(rest.join(" ")); console.log("📜 Written into the Chronicle."); return;
