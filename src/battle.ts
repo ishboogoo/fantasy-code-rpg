@@ -299,6 +299,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const maxTurns = enemy.budget.maxTurns ?? 20;
 
   let pincerLoser: Character | undefined;
+  let contributors: string[] | undefined, alternateBy: string[] | undefined;
   let alternate: InstanceInfo | undefined;
   if (opts.formation === "pincer") {
     if (!inst) throw new Error("Pincer needs a git project: each approach runs in its own copy.");
@@ -328,6 +329,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     const winner = pick.winner === 0 ? inst : instB;
     const loser = pick.winner === 0 ? instB : inst;
     pincerLoser = pick.winner === 0 ? b2 : a;
+    contributors = [(pick.winner === 0 ? a : b2).id]; alternateBy = [pincerLoser.id];
     if (pick.sure) await discard(cwd, loser);
     else { alternate = loser; say(`  ↔ The other approach is kept too: at the Vault you can keep it instead (fcrpg keep ${battleId} --other).`); }
     inst = winner;
@@ -375,6 +377,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       siegeParts.set(x.hero.id, [...(siegeParts.get(x.hero.id) ?? []), x.part]);
     }
     party.splice(0, party.length, ...party.filter((c) => siegeParts.has(c.id))); // heroes without a part sit this one out
+    // Proof goes only to heroes with at least one part that joined the main copy.
+    contributors = party.filter((c) => (siegeParts.get(c.id) ?? []).some((p) => !clashes.includes(p.id))).map((c) => c.id);
   }
   const fightDir = inst?.path ?? cwd;
 
@@ -545,7 +549,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
 
   const report: BattleReport = {
     id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review, alternate, formation: opts.formation,
-    clashes: clashes.length ? clashes : undefined,
+    clashes: clashes.length ? clashes : undefined, contributors, alternateBy,
     newlyMet: enemy.criteria.filter((k) => k.met && !metBefore.has(k.id)).map((k) => k.id),
     awaitingYou: verdict.awaitingYou.length ? verdict.awaitingYou : undefined,
     party: party.map((c) => ({ characterId: c.id, share })),
@@ -583,7 +587,9 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
   if (changed) {
     const head = (await runProcess("git", ["rev-parse", "HEAD"], { cwd, timeoutMs: 30_000 })).stdout.trim();
     const remote = (await runProcess("git", ["remote", "get-url", "origin"], { cwd, timeoutMs: 30_000 })).stdout.trim();
-    const heroes = b.party.map((p) => world.party.find((c) => c.id === p.characterId)).filter((c): c is Character => !!c);
+    // Only the heroes whose work is in what you kept: the chosen Pincer approach, the Siege parts that joined.
+    const ids = (other ? b.alternateBy : b.contributors) ?? b.party.map((p) => p.characterId);
+    const heroes = ids.map((id) => world.party.find((c) => c.id === id)).filter((c): c is Character => !!c);
     const quest = world.enemies.find((e) => e.id === b.enemyId);
     if (/^[0-9a-f]{40}$/.test(head)) addProof(heroes, { quest: quest?.name ?? b.enemyId, commit: head, repo: remote || undefined, at: new Date().toISOString() });
   }

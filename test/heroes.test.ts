@@ -123,3 +123,40 @@ test("keeping a battle records proof of the work on the heroes who did it", asyn
   assert.equal(proof[0].repo, "https://github.com/me/proj", "no token in the card's link");
   assert.equal(proof[0].commit, execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim());
 });
+
+test("cards only carry plain text chunks, and only up to a sane size", () => {
+  const big = Buffer.from(JSON.stringify({ format: "fantasy-code-rpg/hero", version: 1, hero: { name: "x".repeat(300_000) } })).toString("base64");
+  assert.throws(() => readHero(pngWith("fcrpg-hero", big)), /too large/);
+  // A compressed chunk with our key is ignored, never inflated.
+  const z = pngWith("x", "y");
+  const ztxt = Buffer.from(z.toString("latin1").replace("tEXtx\0y", "zTXtx\0y"), "latin1");
+  assert.throws(() => readHero(ztxt), /doesn't carry a hero/);
+});
+
+async function provingGround(cmdA: string, cmdB: string) {
+  const dir = mkdtempSync(join(tmpdir(), "proof2-"));
+  const git = (...a: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: dir });
+  git("init", "-q", "-b", "main"); writeFileSync(join(dir, "README.md"), "x\n"); git("add", "-A"); git("commit", "-q", "-m", "init");
+  const store = new Store(dir); store.init();
+  const w = store.load(); w.treasury.gold = 10;
+  for (const [id, cmd] of [["anna", cmdA], ["bo", cmdB]]) w.party.push({ id, name: id, adapter: "shell", job: "fighter", tier: 2, level: 8, xp: 0, totalXp: 0, records: {}, status: [], recruitedAt: "", adapterConfig: { command: cmd } });
+  w.enemies.push({ id: "q1", name: "Two files", kind: "golem", questType: "build", level: 1, description: "", status: "lurking", budget: { gold: 2 },
+    criteria: [{ id: "a", description: "a.txt", check: "test -f a.txt", met: false }, { id: "b", description: "b.txt", check: "test -f b.txt", met: false }] });
+  return { dir, store, w };
+}
+
+test("proof goes only to heroes whose work was kept (Pincer winner, Siege parts that joined)", async () => {
+  const p = await provingGround("echo a > a.txt && echo b > b.txt", "echo a > a.txt");
+  const r = await battle({ world: p.w, store: p.store, enemyId: "q1", partyIds: ["anna", "bo"], judge: { kind: "tests" }, cwd: p.dir, formation: "pincer" });
+  await keepBattle(p.w, p.store, r.id, p.dir);
+  assert.equal(p.w.party.find((c) => c.id === "anna")!.proof?.length, 1);
+  assert.equal(p.w.party.find((c) => c.id === "bo")!.proof, undefined, "the approach that wasn't kept earns no proof");
+
+  const s = await provingGround("echo a > a.txt && echo one > README.md", "echo b > b.txt && echo two > README.md");
+  s.w.enemies[0].parts = [{ id: "p1", name: "A", criteria: ["a"] }, { id: "p2", name: "B", criteria: ["b"] }];
+  const r2 = await battle({ world: s.w, store: s.store, enemyId: "q1", partyIds: ["anna", "bo"], judge: { kind: "tests" }, cwd: s.dir, formation: "siege" });
+  assert.deepEqual(r2.clashes, ["p2"]);
+  await keepBattle(s.w, s.store, r2.id, s.dir);
+  assert.equal(s.w.party.find((c) => c.id === "anna")!.proof?.length, 1);
+  assert.equal(s.w.party.find((c) => c.id === "bo")!.proof, undefined, "a part that clashed earns no proof");
+});

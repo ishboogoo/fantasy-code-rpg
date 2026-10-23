@@ -132,6 +132,10 @@ export interface BattleReport {
   instance?: InstanceInfo;
   /** Pincer only: the other approach, kept when the judges couldn't agree so you can choose it instead. */
   alternate?: InstanceInfo;
+  /** Whose work is in the kept copy (Pincer: the chosen approach; Siege: the parts that joined). Missing = the whole party. */
+  contributors?: string[];
+  /** Pincer: whose work is in the other approach. */
+  alternateBy?: string[];
   formation?: Formation;
   /** Siege: parts whose changes clashed with earlier parts and were set aside. */
   clashes?: string[];

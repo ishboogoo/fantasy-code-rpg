@@ -189,8 +189,8 @@ async function main(): Promise<void> {
     }
     case "art": {
       const c = world.party.find((x) => x.id === rest[0] || x.name.toLowerCase() === String(rest[0] ?? "").toLowerCase());
-      if (!c || !rest[1]) throw new Error("Usage: art <hero> <image.png|jpg>  (or --off to remove)");
-      if (rest[1] === "--off" || values.off) { delete c.art; save(); console.log(`${c.name}'s card shows their sprite again.`); return; }
+      if (c && values.off) { delete c.art; save(); console.log(`${c.name}'s card shows their sprite again.`); return; }
+      if (!c || !rest[1]) throw new Error("Usage: art <hero> <image.png|jpg>  (or art <hero> --off to remove)");
       c.art = saveArt(store.root, c.id, readFileSync(rest[1]));
       save();
       console.log(`${c.name}'s card now shows your art. Open the Tavern in fcrpg play to see it.`);

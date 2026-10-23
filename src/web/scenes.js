@@ -433,7 +433,9 @@
         var row = el('label'); row.style.cssText = 'display:flex;gap:10px;align-items:center;margin:10px 0';
         row.appendChild(el('span', 'label', t('runsOn')));
         var sel = el('select'); [].forEach.call(conn.options, function (o) { var x = el('option', '', o.textContent); x.value = o.value; x.disabled = o.disabled; sel.appendChild(x); });
-        sel.value = (r.adapter && !conn.querySelector('option[value="' + r.adapter + '"]:disabled')) ? r.adapter : conn.value; row.appendChild(sel); box.appendChild(row);
+        // The connection the hero used before, if this computer has it; otherwise the Tavern's current choice.
+        var same = [].filter.call(sel.options, function (o) { return o.value === r.adapter && !o.disabled; })[0];
+        sel.value = same ? same.value : conn.value; row.appendChild(sel); box.appendChild(row);
         var acts = el('div'); box.appendChild(acts);
         G.menu(acts, [
           { label: t('recruitThem'), action: function () { G.cmd('heroImport', { data: b64, adapter: sel.value }).then(function (x) { G.toast(x.message); G.go('tavern'); }); } },
