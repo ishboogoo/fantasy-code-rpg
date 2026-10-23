@@ -49,7 +49,12 @@ flowchart LR
 | `src/store.ts` | `.savepoint/` files: world state + the Chronicle. | files |
 | `src/adapters/*` | Turn "character + permissions + prompt" into a process or HTTP call. | processes, network |
 | `src/gate.ts` | The Gatekeeper: classifies each tool call against the character's tier. | no — pure |
-| `src/battle.ts` | Save point → turns → judge → rewards. | via the above |
+| `src/quests.ts` | The six quest types and their defaults; the Law's keyword classifier. | no — pure |
+| `src/council.ts` | The Council: decision cascade (Law → Ledger → Seer → Trial → You), decision records and outcomes, Thompson-sampling maths. | `chronicle/decisions.jsonl`, `outcomes.jsonl` |
+| `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
+| `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
+| `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |
+| `src/battle.ts` | Instance → turns with save points → judge → rewards → Treasure Vault → Debrief. | via the above |
 | `src/render.ts` | Terminal windows and bars. | no |
 | `src/cli.ts` | Commands. | stdout |
 
@@ -83,6 +88,20 @@ Adapters report `violation` when they catch overreach. That's a critical failure
 
 Known weakness: Codex's sandbox doesn't separate "write" from "exec", so a T1 Codex character can run commands. Documented in the adapter; better mappings welcome.
 
+## Instances and save points
+
+Each battle gets a git worktree on branch `savepoint/<battle-id>`, created from your current `HEAD` in `~/.cache/savepoint/instances/<repo>-<hash>/` (override with `SAVEPOINT_INSTANCES`). Heroes, checks and the guard all run there. After every hero's turn the instance commits a save point. At the end:
+
+- **critical failure** → the instance is discarded at once;
+- **no changes** → discarded, nothing to review;
+- otherwise → `review: "pending"` until you run `savepoint keep <id>` (fast-forward or merge into your branch; refuses rather than overwrite your uncommitted work) or `savepoint undo <id>` (discard; an undone victory counts as a loss).
+
+Folders that aren't git repositories with a commit fall back to running in place, with a warning. `--in-place` forces that.
+
+## The Council
+
+`Council.decide(kind, question, seats, questId)` asks the seats in order. A seat returns `{answer, confidence, reasons}` or `null`. The first answer at or above the bar for that kind wins; otherwise the decision goes to you with the most confident answer as a suggestion. Every decision is appended to `chronicle/decisions.jsonl`; `markOutcome()` appends right/wrong to `outcomes.jsonl` (latest mark wins), and `accuracy()` reports each seat's record. Seats are plain functions, so adding the Seer (a cheap model) or the Trial (cross-company vote) is adding a function, not changing the cascade.
+
 ## Judging
 
 `judgeBattle` combines, in order:
@@ -99,6 +118,7 @@ Self-reported `DONE:` lines are claims only. Nothing is credited without a check
 - **Files, not a database,** for v0. Humans and agents can both read the state. SQLite can come later behind `Store`.
 - **Wilson lower bound for REL,** so a 3-for-3 lucky streak can't out-trust a 58-for-60 veteran.
 - **Build on, don't fork.** See below.
+- The full, dated decision log is **[DECISIONS.md](DECISIONS.md)**.
 
 ## Prior art and what to build on
 

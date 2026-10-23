@@ -1,4 +1,6 @@
-# UX Plan — playing SAVEPOINT
+# UX Plan — playing Fantasy Code RPG
+
+> **Updated 2026-10-23:** the quest loop, scenes, menus, Council and allies now live in [DESIGN_PLAN.md](DESIGN_PLAN.md), and every decision is logged in [DECISIONS.md](DECISIONS.md). Where they differ, those win. This file still holds the detailed art, sound, accessibility and generator rules.
 
 > **North star:** it should get real work done better than any single AI app, and it should feel like booting up a 16-bit RPG you loved.
 

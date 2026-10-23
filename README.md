@@ -1,6 +1,10 @@
-# 💾 SAVEPOINT
+# Fantasy Code RPG
+
+![Fantasy Code RPG key art](assets/brand/cover.png)
 
 **A 90s-RPG harness for AI agent teams. Agents earn autonomy by proving they're reliable.**
+
+The game is *Fantasy Code RPG*; its engine and command-line tool are called `savepoint`.
 
 ```
 ╔═ PARTY ══════════════════════════════════════════════════════╗
@@ -46,8 +50,14 @@ savepoint spawn bug-42 --name "Login crashes on empty email" --kind goblin --lev
   --criteria "test: a regression test covers it" \
   --check "test=pnpm test -- login" --guard "pnpm test"
 
-savepoint battle bug-42 --party aria --judge cass
+savepoint suggest bug-42          # the recommended party, with reasons
+savepoint battle bug-42           # no --party: the Council picks the lead; swap anyone with --party
+savepoint keep <battle-id>        # Treasure Vault: bring the changes into your project
+savepoint undo <battle-id>        # …or throw them away (counts as a loss for the party)
+savepoint council                 # how each Council seat has decided, and how often it was right
 ```
+
+Every battle runs in **its own copy of your project** (a git worktree), with a save point after each hero's turn. Nothing touches your folder until you choose Keep.
 
 ## The world in one table
 
@@ -61,9 +71,11 @@ savepoint battle bug-42 --party aria --judge cass
 | REL | Wilson lower bound of success rate. Drives promotion. Luck can't fake it |
 | Gold / MP | API dollars / subscription CLI quota that refills at the Inn |
 | The Chronicle | Shared context every CLI and API character reads and writes |
-| Save point | git checkpoint before every battle |
+| Save point | A commit after every hero's turn, in the battle's own copy of the project |
+| Quest type | Build · Fix · Improve · Explore · Maintain · Write: sets the party, budget and what counts as proof |
+| The Council | How every decision is made: rules → win records → a cheap fast model → a vote across AI companies → you |
 
-Full rules: **[docs/WORLD.md](docs/WORLD.md)** · How it is built: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** · Lessons from other projects: **[docs/CROSS_REFERENCE.md](docs/CROSS_REFERENCE.md)** · The 90s feel: **[docs/EXPERIENCE.md](docs/EXPERIENCE.md)** · UX plan: **[docs/UX_PLAN.md](docs/UX_PLAN.md)**
+Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[docs/DECISIONS.md](docs/DECISIONS.md)** · Full rules: **[docs/WORLD.md](docs/WORLD.md)** · How it is built: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** · Lessons from other projects: **[docs/CROSS_REFERENCE.md](docs/CROSS_REFERENCE.md)** · The 90s feel: **[docs/EXPERIENCE.md](docs/EXPERIENCE.md)** · UX plan: **[docs/UX_PLAN.md](docs/UX_PLAN.md)**
 
 ## Three rules that make this more than a skin
 
@@ -73,7 +85,7 @@ Full rules: **[docs/WORLD.md](docs/WORLD.md)** · How it is built: **[docs/ARCHI
 
 ## Status
 
-**v0.1 — playable core.** Rules engine, Chronicle, battle loop, judge, the Gatekeeper (per-tool-call tier enforcement via Claude Code hooks), 7 adapters, terminal UI + status-line HUD, 17 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus quest types, the Council's first two seats, recommended parties, and battles in private copies with save points, Keep and Undo. 29 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild
