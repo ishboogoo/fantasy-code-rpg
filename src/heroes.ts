@@ -9,7 +9,6 @@
 // for more). Their record elsewhere counts as a discounted head start toward promotion, so a
 // proven hero earns full rank faster than a newcomer, but always by winning here.
 
-import { inflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Career, Character, JobLine, ProofEntry, QuestType, Tier, TrackRecord, World } from "./types.ts";
@@ -207,6 +206,8 @@ export function describeHeroFile(f: HeroFile): string[] {
 
 const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 export const PNG_KEY = "fcrpg-hero";
+/** A hero file is a few KB; anything far bigger is refused before parsing. */
+export const MAX_HERO_TEXT = 256 * 1024;
 
 /** Find the hero data a card PNG carries (a tEXt chunk "fcrpg-hero" holding base64 JSON). */
 export function heroFromPng(buf: Buffer): unknown {
@@ -215,11 +216,12 @@ export function heroFromPng(buf: Buffer): unknown {
   while (at + 8 <= buf.length) {
     const len = buf.readUInt32BE(at), type = buf.toString("latin1", at + 4, at + 8);
     const body = buf.subarray(at + 8, at + 8 + len);
-    if (type === "tEXt" || type === "zTXt") {
+    // Only the plain tEXt chunk our cards write: compressed chunks could expand without limit.
+    if (type === "tEXt") {
       const z = body.indexOf(0);
       if (z > 0 && body.toString("latin1", 0, z) === PNG_KEY) {
-        const raw = type === "tEXt" ? body.subarray(z + 1) : inflateSync(body.subarray(z + 2));
-        return JSON.parse(Buffer.from(raw.toString("latin1"), "base64").toString("utf8"));
+        if (body.length > MAX_HERO_TEXT) throw new Error("The hero data in this card is too large.");
+        return JSON.parse(Buffer.from(body.subarray(z + 1).toString("latin1"), "base64").toString("utf8"));
       }
     }
     if (type === "IEND") break;
@@ -230,6 +232,7 @@ export function heroFromPng(buf: Buffer): unknown {
 
 /** Read a shared hero from a .hero.json text or a card PNG. */
 export function readHero(buf: Buffer): HeroFile {
+  if (buf.length > 3 * 1024 * 1024) throw new Error("That file is too large to be a hero card.");
   const looksPng = buf.length >= 8 && buf.subarray(0, 8).equals(PNG_SIG);
   return parseHeroFile(looksPng ? heroFromPng(buf) : JSON.parse(buf.toString("utf8")));
 }
