@@ -36,7 +36,7 @@ npm publish --access public # asks for your 2FA code
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-Pushing the tag runs the **Release** workflow: it sees 0.2.0 is already on npm, skips publishing, and creates the GitHub release from the changelog.
+Then create the release on GitHub (Releases → Draft a new release → tag `v0.2.0`, new tag on `main` → Publish). That makes the tag, and the **Release** workflow sees 0.2.0 is already on npm, skips publishing, and fills in the release notes from the changelog.
 
 Finally, check it works the way a new player gets it, in a fresh folder:
 
