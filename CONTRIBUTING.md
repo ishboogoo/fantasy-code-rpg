@@ -50,7 +50,7 @@ Original work only. Inspired by the era is great; ripped sprites, music or propr
 
 ## How your pull request is reviewed
 
-See [docs/MAINTAINING.md](docs/MAINTAINING.md): who reviews, what we check (safety first), and how releases happen. Changes to the Gatekeeper, hooks, rules, adapters, hero import, workflows or `package.json` always need the maintainer's own approval.
+See [docs/MAINTAINING.md](docs/MAINTAINING.md): who reviews, what we check (safety first), and how releases happen. Changes to the Gatekeeper and its entry point (`src/cli.ts`), hooks, rules, the game server, adapters, hero import, workflows or `package.json` always need the maintainer's own approval.
 
 ## Code of conduct
 
