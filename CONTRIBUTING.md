@@ -48,6 +48,10 @@ Original work only. Inspired by the era is great; ripped sprites, music or propr
 - Conventional-ish titles: `adapter(codex): verify sandbox flags`, `rules: diminishing XP for repeat slimes`.
 - Fill in the PR template's "How was this judged?" section: which tests prove it works.
 
+## How your pull request is reviewed
+
+See [docs/MAINTAINING.md](docs/MAINTAINING.md): who reviews, what we check (safety first), and how releases happen. Changes to the Gatekeeper, hooks, rules, adapters, hero import, workflows or `package.json` always need the maintainer's own approval.
+
 ## Code of conduct
 
 Be the party member you'd want in a dungeon. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

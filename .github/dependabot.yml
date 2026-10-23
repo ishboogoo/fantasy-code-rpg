@@ -1,0 +1,10 @@
+# Proposes updates to the pinned GitHub Actions as pull requests, so they're reviewed like any other change.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: monthly }
+    # Dev tools only (TypeScript, Node types); the game has no runtime dependencies.
