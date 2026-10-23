@@ -20,4 +20,5 @@ test("a quest finished another way can be closed, or dropped", () => {
   const after = new Store(dir).load();
   assert.deepEqual(after.enemies.map((e) => e.status), ["defeated", "fled"]);
   assert.deepEqual(Object.keys(after.party), [], "nobody's record changes");
+  assert.throws(() => run(dir, "battle", "q2", "--party", "nobody"), /dropped/, "a dropped quest can't be fought");
 });

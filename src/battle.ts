@@ -262,6 +262,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const enemy = world.enemies.find((e) => e.id === opts.enemyId);
   if (!enemy) throw new Error(`No enemy with id ${opts.enemyId}`);
   if (enemy.status === "defeated") throw new Error(`${enemy.name} is already defeated.`);
+  if (enemy.status === "fled") throw new Error(`${enemy.name} was dropped. Spawn or request it again if you still want it done.`);
   if (enemy.questions?.length) throw new Error(`A Sphinx blocks the road: ${enemy.name} has open questions. Answer them first (fcrpg answer ${enemy.id} "...").`);
   if (enemy.approved === false) throw new Error(`${enemy.name} is waiting for your approval of its victory conditions${enemy.plan ? " and plan" : ""}: fcrpg approve ${enemy.id}`);
   const party = opts.partyIds.map((id) => {

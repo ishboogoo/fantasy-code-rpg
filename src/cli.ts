@@ -537,7 +537,7 @@ function statusline(): void {
     const mp = c.mp ? ` MP${c.mp.current}/${c.mp.max}` : "";
     return `${c.name} Lv${c.level} ${title(c)} REL${reliability(recordFor(c)).toFixed(2)}${mp}`;
   });
-  const foes = w.enemies.filter((e) => e.status !== "defeated").length;
+  const foes = w.enemies.filter((e) => e.status !== "defeated" && e.status !== "fled").length;
   console.log(`💾 ${hud.join(" │ ")} │ 💰${(w.treasury.gold - w.treasury.spent).toFixed(2)}G │ 👾${foes}`);
 }
 

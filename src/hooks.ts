@@ -138,7 +138,8 @@ export function moveFor(cli: HookCli, toolName: string, input: Record<string, un
   const rel = (s: string) => {
     if (!root) return s;
     const esc = root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\\|\//g, "[\\\\/]");
-    const out = s.replace(new RegExp(esc + "(?:[\\\\/]|(?=$|[\\s\"'`]))", win ? "gi" : "g"), (m) => (/[\\/]$/.test(m) ? "" : "."));
+    // The root must start a path (start of text, or after a space, quote, = or bracket) and end one.
+    const out = s.replace(new RegExp("(?<=^|[\\s\"'`=(])" + esc + "(?:[\\\\/]|(?=$|[\\s\"'`)]))", win ? "gi" : "g"), (m) => (/[\\/]$/.test(m) ? "" : "."));
     return out || ".";
   };
   const short = (s: string) => { const r = rel(s); return r.length > 48 ? "…" + r.slice(-47) : r; };
