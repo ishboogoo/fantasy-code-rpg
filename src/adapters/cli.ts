@@ -6,7 +6,7 @@
 // add a test. See ROADMAP.md → "Good first quests".
 
 import type { Adapter, AdapterRequest, AdapterResult } from "./adapter.ts";
-import { runProcess } from "./adapter.ts";
+import { runProcess, runShell } from "./adapter.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { permissionsFor } from "../rules.ts";
 import type { Tier } from "../types.ts";
@@ -18,9 +18,12 @@ import { fileURLToPath } from "node:url";
 const HERE = fileURLToPath(import.meta.url);
 const CLI_PATH = join(dirname(HERE), "..", `cli${extname(HERE)}`);
 
+// Forward slashes work in every shell the CLIs use for hooks, including Git Bash and cmd.exe on Windows.
+const NODE = JSON.stringify(process.execPath.replace(/\\/g, "/"));
+const CLI = JSON.stringify(CLI_PATH.replace(/\\/g, "/"));
 const COMMANDS: HookCommands = {
-  gate: `node ${JSON.stringify(CLI_PATH)} gate`,
-  stop: `node ${JSON.stringify(CLI_PATH)} stop-gate`,
+  gate: `${NODE} ${CLI} gate`,
+  stop: `${NODE} ${CLI} stop-gate`,
 };
 
 /** Write a settings file that routes every tool call and every stop through the Gatekeeper. */
@@ -50,7 +53,7 @@ export const claudeCode: Adapter = {
     // asks you before any of those runs. Two ranks up stays out of reach entirely. Desk jobs stay read-only.
     // Checked against Claude Code 2.1.309: -p, --output-format json, --max-turns, --permission-mode, --allowedTools, --settings <file>.
     const p = req.desk || !req.home ? req.permissions : permissionsFor(Math.min(4, req.character.tier + 1) as Tier);
-    const tools = ["Read", "Grep", "Glob", "Bash"]; // Bash: the Gatekeeper lets read-only commands through at any rank
+    const tools = ["Read", "Grep", "Glob", "Bash", "PowerShell"]; // Bash: the Gatekeeper lets read-only commands through at any rank
     if (p.write) tools.push("Edit", "Write", "MultiEdit");
     if (p.network) tools.push("WebFetch", "WebSearch");
     const args = ["-p", req.prompt, "--output-format", "json", "--max-turns", String(req.maxTurns)];
@@ -131,7 +134,7 @@ export const shell: Adapter = {
     }
     const cmd = req.character.adapterConfig?.command;
     if (!cmd) return fail("shell adapter needs adapterConfig.command");
-    const r = await runProcess("sh", ["-c", cmd], { cwd: req.cwd, input: req.prompt });
+    const r = await runShell(cmd, { cwd: req.cwd, input: req.prompt });
     return { output: r.stdout + r.stderr, costGold: 0, costMp: 0, turns: 1, error: r.code === 0 ? undefined : `exit ${r.code}` };
   },
 };

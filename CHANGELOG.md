@@ -2,6 +2,14 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.2]
+
+### Added
+- **Screenshots:** press **P** (or the 📷 button, top right) anywhere in the browser game to save the screen as a PNG and copy it, ready to share. The picture carries a small "Fantasy Code RPG" credit.
+
+### Fixed
+- **Windows support.** Victory-condition checks and guards now run through the system shell (cmd.exe on Windows); the game finds installed CLIs with `where`; npm-installed command wrappers (`codex.cmd`, `gemini.cmd`) are run through their script; hook commands use forward-slash paths; Windows file paths into the guild's records are still refused; Claude Code's PowerShell tool follows the same rules as Bash.
+
 ## [0.2.1]
 
 ### Added

@@ -34,7 +34,7 @@ const FORBIDDEN: Array<[RegExp, string]> = [
 export interface GateDecision { allow: boolean; need?: Need; reason: string }
 
 /** Commands that only look (no writing, no network, no running other programs). Any rank may run them. */
-const READ_ONLY_COMMANDS = /^(git\s+(log|status|diff|show|branch|ls-files|rev-parse|blame|grep)\b|ls|cat|head|tail|wc|grep|rg|find|pwd|echo|tree|file|stat|du|which|basename|dirname|sort|uniq|cut|sed\s+-n)\b/;
+const READ_ONLY_COMMANDS = /^(git\s+(log|status|diff|show|branch|ls-files|rev-parse|blame|grep)\b|ls|cat|head|tail|wc|grep|rg|find|pwd|echo|tree|file|stat|du|which|basename|dirname|sort|uniq|cut|sed\s+-n|Get-ChildItem|Get-Content|Get-Location|Select-String|Get-Item|Test-Path|Resolve-Path|dir|type)\b/i;
 
 /** True for a shell command made only of read-only parts: no redirection into files, no -exec / -delete, no in-place edits. */
 export function isReadOnlyCommand(command: string): boolean {
@@ -45,7 +45,8 @@ export function isReadOnlyCommand(command: string): boolean {
 
 export function classify(toolName: string, input: Record<string, unknown>, p: Permissions): GateDecision {
   const command = typeof input.command === "string" ? input.command : "";
-  const path = String(input.file_path ?? input.path ?? "");
+  // Windows paths use backslashes; the rules below are written with forward slashes.
+  const path = String(input.file_path ?? input.path ?? "").replace(/\\/g, "/");
 
   const isRead = READ_TOOLS.test(toolName);
   for (const [re, why] of FORBIDDEN) {
