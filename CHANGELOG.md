@@ -2,6 +2,18 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.8]
+
+### Added
+- **Close a quest** that was finished another way (for example, you kept a retreat's work), or drop one you no longer need: CLOSE QUEST in the War Room, or `fcrpg close <quest> [--drop]`. Nobody gains or loses trust.
+
+### Fixed
+- In a Siege, the enemy's HP now drops live as each part joins the main copy.
+- A hero the Council calls in for help appears on the field and in the party panel.
+- Asking for permission and being refused (or not answered in time) costs the hero 1 HP, like any other blocked try.
+- Battle paths are shortened only when they are really inside the battle's copy ("/tmp/project" is not inside "/tmp/proj"); case is ignored only on Windows.
+- The same-company judge warning considers exactly the heroes who could be picked as judges, and stays quiet for simulated heroes.
+
 ## [0.2.7]
 
 ### Added

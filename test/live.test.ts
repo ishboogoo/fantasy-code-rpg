@@ -53,6 +53,11 @@ test("paths inside the battle's copy are shown relative to it", () => {
   assert.equal(moveFor("claude", "Read", { file_path: "/tmp/x/proj/src/web/ui.js" }, "/tmp/x/proj/").target, "src/web/ui.js");
   assert.equal(moveFor("claude", "Bash", { command: `ls ${root}` }, root).target, "ls .");
   assert.equal(moveFor("claude", "Read", { file_path: "/etc/hosts" }, "/tmp/x/proj").target, "/etc/hosts");
+  assert.equal(moveFor("claude", "Read", { file_path: "/tmp/x/project/file" }, "/tmp/x/proj").target, "/tmp/x/project/file", "a sibling isn't inside");
+  assert.equal(moveFor("claude", "Read", { file_path: "/home/tmp/x/proj/file" }, "/tmp/x/proj").target, "/home/tmp/x/proj/file", "nor a path that merely ends with it");
+  assert.equal(moveFor("claude", "Bash", { command: "cat '/tmp/x/proj/a b.txt'" }, "/tmp/x/proj").target, "cat 'a b.txt'");
+  assert.equal(moveFor("claude", "Read", { file_path: "/TMP/x/proj/a" }, "/tmp/x/proj").target, "/TMP/x/proj/a", "exact case off Windows");
+  assert.equal(moveFor("claude", "Read", { file_path: "c:/users/A/proj/a.ts" }, "C:\\Users\\a\\proj").target, "a.ts", "Windows: any case, either slash");
 });
 
 test("security risk words match whole ideas, not lookalikes", () => {
@@ -69,4 +74,10 @@ test("the War Room says when every possible judge shares the party's AI company"
   assert.ok(checkParty(w, w.enemies[0], picks).some((x) => /same AI company/.test(x)));
   w.party[2].adapter = "codex";
   assert.ok(!checkParty(w, w.enemies[0], picks).some((x) => /same AI company as the party/.test(x)));
+});
+
+test("simulated heroes don't trigger the same-company judge warning", () => {
+  const { w } = setup(["true", "true"], [{ id: "a", description: "x", met: false }]);
+  w.party.forEach((c) => { c.adapter = "mock"; });
+  assert.ok(!checkParty(w, w.enemies[0], [{ id: "h0", role: "lead" }]).some((x) => /same AI company/.test(x)));
 });

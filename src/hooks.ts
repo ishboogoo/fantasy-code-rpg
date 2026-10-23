@@ -132,15 +132,14 @@ export function moveFor(cli: HookCli, toolName: string, input: Record<string, un
   const path = String(n.input.file_path ?? n.input.path ?? n.input.pattern ?? "");
   // Paths inside the battle's copy are shown relative to it ("README.md", not the long copy folder).
   const root = cwd ? cwd.replace(/[\\/]+$/, "") : "";
+  // Only a whole path segment counts: "/tmp/project" is not inside "/tmp/proj". Windows paths compare
+  // without case and with either slash; other systems compare exactly.
+  const win = /^[a-z]:[\\/]/i.test(root) || root.includes("\\");
   const rel = (s: string) => {
     if (!root) return s;
-    const norm = (x: string) => x.replace(/\\/g, "/").toLowerCase();
-    let out = s, i: number;
-    while ((i = norm(out).indexOf(norm(root))) >= 0) {
-      let j = i + root.length;
-      if (out[j] === "/" || out[j] === "\\") j++;
-      out = out.slice(0, i) + (j === i + root.length ? "." : "") + out.slice(j);
-    }
+    const esc = root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\\|\//g, "[\\\\/]");
+    // The root must start a path (start of text, or after a space, quote, = or bracket) and end one.
+    const out = s.replace(new RegExp("(?<=^|[\\s\"'`=(])" + esc + "(?:[\\\\/]|(?=$|[\\s\"'`)]))", win ? "gi" : "g"), (m) => (/[\\/]$/.test(m) ? "" : "."));
     return out || ".";
   };
   const short = (s: string) => { const r = rel(s); return r.length > 48 ? "…" + r.slice(-47) : r; };

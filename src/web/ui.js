@@ -104,6 +104,7 @@
   // Hair and skin are chosen once here, from the hero's id, and given to both the portrait and the sprite.
   var HAIRS = { fae: ['rose', 'ocean', 'arcane', 'forest', 'gold'], dwarf: ['ember', 'earth', 'steel', 'gold'], automaton: ['steel'] };
   var SKINS = { lizardfolk: ['forest', 'ocean'], demonkin: ['demon'], automaton: ['steel'], fae: ['skin'] };
+  G.isOpen = function (q) { return q.status !== 'defeated' && q.status !== 'fled'; };
   G.look = function (c) {
     var h = hash(c.id), race = (c.look && c.look.race) || RACES[h % RACES.length];
     var hairs = HAIRS[race] || ['gold', 'ember', 'ink', 'steel', 'rose', 'ocean', 'arcane', 'earth'];

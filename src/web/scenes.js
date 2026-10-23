@@ -6,11 +6,11 @@
 
   function waiting(s) {
     return {
-      counter: s.quests.filter(function (q) { return q.questions.length; }).length,
-      warroom: s.quests.filter(function (q) { return !q.approved && !q.questions.length && q.status !== 'defeated'; }).length,
+      counter: s.quests.filter(function (q) { return q.questions.length && G.isOpen(q); }).length,
+      warroom: s.quests.filter(function (q) { return !q.approved && !q.questions.length && G.isOpen(q); }).length,
       vault: s.battles.filter(function (b) { return b.review === 'pending'; }).length,
       inn: s.party.filter(function (c) { return c.status.indexOf('resting') >= 0 || (c.mp && c.mp.current <= 0); }).length,
-      open: s.quests.filter(function (q) { return q.status !== 'defeated'; }).length,
+      open: s.quests.filter(function (q) { return G.isOpen(q); }).length,
     };
   }
 
@@ -144,7 +144,7 @@
     // Questions still open on any quest are listed on the right when nothing else is shown.
     function showOpen() {
       right.innerHTML = '';
-      var open = G.state.quests.filter(function (q) { return q.questions.length; });
+      var open = G.state.quests.filter(function (q) { return q.questions.length && G.isOpen(q); });
       if (!open.length) { right.appendChild(el('div', 'quiet', t('counterIdle'))); return; }
       showQuest(open[0]);
     }
@@ -187,7 +187,7 @@
   S.board = function () {
     var head = G.win(12, 12, 1128); head.innerHTML = '<span class="h1"></span> <span class="quiet"></span>';
     head.children[0].textContent = t('board'); head.children[1].textContent = '· ' + t('keys');
-    var open = G.state.quests.filter(function (q) { return q.status !== 'defeated'; }).slice(0, 6);
+    var open = G.state.quests.filter(function (q) { return G.isOpen(q); }).slice(0, 6);
     if (!open.length) {
       var w = G.win(300, 240, 552); w.appendChild(el('div', 'h1', t('noQuests')));
       G.menu(w, [{ label: t('counter'), action: function () { G.go('counter'); } }, { label: t('toTown'), action: function () { G.go('town'); } }], { small: true });
@@ -221,7 +221,7 @@
   // ---------------- War Room (Scout, Plan, Party) ----------------
   S.warroom = function (params) {
     var s = G.state;
-    var q = params.id ? G.quest(params.id) : s.quests.filter(function (x) { return x.status !== 'defeated'; })[0];
+    var q = params.id ? G.quest(params.id) : s.quests.filter(function (x) { return G.isOpen(x); })[0];
     if (!q) { G.go('board'); return; }
     var left = G.win(12, 12, 400, 624, 'scroll'); questCard(left, q);
     var mid = G.win(424, 12, 400, 548, 'scroll');
@@ -337,6 +337,15 @@
       var party = [picks.lead, picks.support].filter(Boolean);
       if (formation === 'pincer' && party.length < 2) { G.toast(t('pincerNeedsTwo'), true); return; }
       G.cmd('battle', { id: q.id, party: party, formation: formation }).then(function () { G.go('battle'); });
+    } });
+    items.push({ label: t('closeQuest'), disabled: !!s.fighting, action: function () {
+      // Finished some other way (for example, you kept a retreat's work), or no longer wanted.
+      var box = G.win(300, 200, 552, null); box.style.zIndex = 40;
+      box.appendChild(el('div', 'h1', t('closeQuest'))); box.appendChild(el('div', 'quiet', t('closeHelp')));
+      var m = el('div'); box.appendChild(m);
+      var done = function (how) { G.cmd('closeQuest', { id: q.id, how: how }).then(function (r) { G.toast(r.message); G.go('board'); }).catch(function (e) { G.toast(e.message, true); box.remove(); }); };
+      G.menu(m, [{ label: t('closeDone'), action: function () { done('done'); } }, { label: t('closeDrop'), action: function () { done('drop'); } },
+        { label: t('cancel'), action: function () { box.remove(); G.go('warroom', { id: q.id }); } }], {});
     } });
     items.push({ label: t('back'), action: function () { G.go('board'); } });
     G.menu(foot, items, { row: true, small: true });

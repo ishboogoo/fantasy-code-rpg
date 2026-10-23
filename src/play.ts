@@ -154,6 +154,12 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         q.approved = true; if (q.risk?.risky) q.riskApproved = true;
         return { message: `Approved ${q.name}.` };
       });
+      case "closeQuest": return change(async (w) => {
+        const q = quest(w); const done = b.how === "done";
+        if (w.battles.some((x) => x.enemyId === q.id && x.review === "pending")) throw new Error("A battle for this quest still waits at the Treasure Vault. Keep or undo it first.");
+        q.status = done ? "defeated" : "fled";
+        return { message: done ? `${q.name} is marked done.` : `${q.name} was dropped.` };
+      });
       case "answer": return change(async (w) => { answer(quest(w), String(b.text ?? "").slice(0, 2000)); return { message: "Noted." }; });
       case "request": return change(async (w) => {
         const text = String(b.text ?? "").trim().slice(0, 4000);

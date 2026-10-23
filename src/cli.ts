@@ -48,6 +48,7 @@ Fantasy Code RPG — a 90s-RPG harness for AI agent teams
   fcrpg answer <quest> "<your answer>"     Answer the Clerk's or Scout's questions
   fcrpg plan <quest>                       War Room: read-only scouting report and plan
   fcrpg approve <quest>                    Approve the victory conditions and plan (Adventurer, Tactician)
+  fcrpg close <quest> [--drop]             Mark a quest done (you finished it another way), or drop it
   fcrpg settings [--play-style story|adventurer|tactician]
   fcrpg suggest <enemy-id>                 Recommended party for a quest, with reasons
   fcrpg battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
@@ -85,7 +86,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" }, version: { type: "boolean", short: "v" },
     type: { type: "string" }, "in-place": { type: "boolean" },
-    port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
+    port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, drop: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
     part: { type: "string", multiple: true }, from: { type: "string" }, yes: { type: "boolean" },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
@@ -277,6 +278,15 @@ async function main(): Promise<void> {
       console.log(`🏰 ${q.name} splits into ${q.parts.length} parts:\n${q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`).join("\n")}`);
       if (loose.length) console.log(`  Not in any part: ${loose.join(", ")}. They are judged on the combined result.`);
       console.log(`Fight it: fcrpg battle ${q.id} --formation siege`);
+      return;
+    }
+    case "close": {
+      const q = world.enemies.find((e) => e.id === rest[0]);
+      if (!q) throw new Error("Usage: close <quest> [--drop]   (marks a quest done, or drops it with --drop)");
+      if (world.battles.some((x) => x.enemyId === q.id && x.review === "pending")) throw new Error(`A battle for ${q.name} still waits at the Treasure Vault: fcrpg keep or fcrpg undo first.`);
+      q.status = values.drop ? "fled" : "defeated";
+      save();
+      console.log(values.drop ? `🏃 ${q.name} was dropped. It leaves the Quest Board.` : `✅ ${q.name} is marked done. No battle, so nobody gains or loses trust.`);
       return;
     }
     case "approve": {
@@ -527,7 +537,7 @@ function statusline(): void {
     const mp = c.mp ? ` MP${c.mp.current}/${c.mp.max}` : "";
     return `${c.name} Lv${c.level} ${title(c)} REL${reliability(recordFor(c)).toFixed(2)}${mp}`;
   });
-  const foes = w.enemies.filter((e) => e.status !== "defeated").length;
+  const foes = w.enemies.filter((e) => e.status !== "defeated" && e.status !== "fled").length;
   console.log(`💾 ${hud.join(" │ ")} │ 💰${(w.treasury.gold - w.treasury.spent).toFixed(2)}G │ 👾${foes}`);
 }
 

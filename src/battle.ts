@@ -262,6 +262,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const enemy = world.enemies.find((e) => e.id === opts.enemyId);
   if (!enemy) throw new Error(`No enemy with id ${opts.enemyId}`);
   if (enemy.status === "defeated") throw new Error(`${enemy.name} is already defeated.`);
+  if (enemy.status === "fled") throw new Error(`${enemy.name} was dropped. Spawn or request it again if you still want it done.`);
   if (enemy.questions?.length) throw new Error(`A Sphinx blocks the road: ${enemy.name} has open questions. Answer them first (fcrpg answer ${enemy.id} "...").`);
   if (enemy.approved === false) throw new Error(`${enemy.name} is waiting for your approval of its victory conditions${enemy.plan ? " and plan" : ""}: fcrpg approve ${enemy.id}`);
   const party = opts.partyIds.map((id) => {
@@ -388,7 +389,10 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     // Merge in the order the parts were listed; a part that clashes with earlier ones is set aside.
     for (const x of results) {
       if (await mergeInto(inst, x.where, `join ${x.part.name} into ${enemy.id}`)) {
-        if (x.where.savePoints.length) { joined.add(x.part.id); say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) }); }
+        if (x.where.savePoints.length) {
+          joined.add(x.part.id); say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) });
+          if (withChecks.length) await progress(inst.path, x.hero.id, "main", inst.base);
+        }
       } else {
         clashes.push(x.part.id);
         say(`  💥 ${x.part.name} clashed with the parts before it and was set aside. Fight it again after you keep the rest.`);
