@@ -360,6 +360,7 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
   if (scout) {
     const prompt = [
       `[SCOUT] You are ${scout.name}, scouting ahead. Read-only: look, do not change anything.`,
+      "Do not try to save notes or a plan to a file (writing is blocked on this job): put everything in your reply.",
       `Quest: ${quest.name}\n${quest.description}`, "Victory conditions:", conditions,
       "Report: which files matter, what is really going on (reproduce the problem if you can by reading code and tests), and what could go wrong.",
       "End with exactly one line: VERDICT: proceed | VERDICT: unclear | VERDICT: split",
@@ -385,6 +386,7 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
   if (planner) {
     const prompt = [
       `[PLAN] You are ${planner.name}, the strategist. Read-only: plan, do not change anything.`,
+      "Do not try to save notes or a plan to a file (writing is blocked on this job): put everything in your reply.",
       `Quest: ${quest.name}\n${quest.description}`, "Victory conditions:", conditions,
       quest.scouting ? `Scouting report:\n${quest.scouting}` : "",
       "Write a short numbered plan: the steps, the files to touch, how each victory condition will be proven, the main risks, and a rough cost.",

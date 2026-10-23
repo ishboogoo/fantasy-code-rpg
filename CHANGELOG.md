@@ -2,6 +2,11 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [Unreleased]
+
+### Fixed
+- The Scout and the Planner no longer try to save their report to a file (blocked on read-only jobs, which showed up as "I couldn't save my notes…"); the whole report goes in their reply.
+
 ## [0.2.9]
 
 ### Added
