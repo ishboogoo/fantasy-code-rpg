@@ -1,0 +1,28 @@
+name: Release
+# Push a tag like v0.2.0 to publish that version to npm and make a GitHub release.
+# Uses npm trusted publishing (no token stored in GitHub): set it up once on npmjs.com,
+# see docs/RELEASING.md.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write   # create the GitHub release
+  id-token: write   # prove to npm that this workflow is publishing
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, registry-url: "https://registry.npmjs.org" }
+      - run: npm ci || npm install
+      - run: npm run typecheck
+      - run: npm test
+      - name: Tag matches package.json
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - name: Publish to npm (skipped if this version is already there, e.g. the first release made by hand)
+        run: |
+          if npm view "fantasy-code-rpg@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then echo "Already on npm."; else npm publish --access public; fi
+      - name: GitHub release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${GITHUB_REF_NAME#v}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)

@@ -1,6 +1,6 @@
 # Code of Conduct
 
-SAVEPOINT is a guild, and guilds only work when everyone can trust the party.
+Fantasy Code RPG is a guild, and guilds only work when everyone can trust the party.
 
 **We expect:** kindness to newcomers, critique aimed at code and ideas rather than people, patience with people writing in their second or third language, and credit given where it's due.
 

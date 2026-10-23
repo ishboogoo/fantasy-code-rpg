@@ -27,7 +27,7 @@ function guild(): { dir: string; store: Store } {
 /** Run the real Gatekeeper hook as Claude Code would, and return what it prints. */
 function gate(dir: string, hero: string, event: Record<string, unknown>): { done: Promise<string> } {
   const child = spawn(process.execPath, [CLI, "gate", "--cli", "claude"], {
-    env: { ...process.env, SAVEPOINT_CHARACTER: hero, SAVEPOINT_HOME: join(dir, ".savepoint"), SAVEPOINT_QUEST: "q1" },
+    env: { ...process.env, FCRPG_CHARACTER: hero, FCRPG_HOME: join(dir, ".fcrpg"), FCRPG_QUEST: "q1" },
   });
   let out = "";
   child.stdout.on("data", (d) => (out += d));
@@ -87,7 +87,7 @@ test("a job you hand over passes to the chosen hero in the same battle", async (
   store.init();
   const w = store.load();
   w.treasury.gold = 5;
-  const asks = join(dir, ".savepoint", "chronicle", "asks");
+  const asks = join(dir, ".fcrpg", "chronicle", "asks");
   // A shell hero that, mid-turn, needs something it may not do; you hand the job to Cass.
   const cmd = `mkdir -p ${asks} && printf '{"id":"h1","hero":"smith","quest":"q1","tool":"Bash","move":"CAST","target":"git push","need":"openPr","reason":"x","status":"decided","decision":"handoff","to":"cass","at":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%S.999Z)" > ${asks}/h1.json`;
   w.party.push(

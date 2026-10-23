@@ -1,4 +1,4 @@
-# The World of SAVEPOINT
+# The World of Fantasy Code RPG
 
 > *"Your party has entered the repository. A wild Goblin (failing test) appears!"*
 
@@ -182,7 +182,7 @@ All characters, whether CLIs or APIs, share one memory:
 - **Scrolls** — per-quest notes: plan, findings, handoffs between characters
 - **Log** — append-only event stream of every battle
 
-CLIs read it as files (`.savepoint/chronicle/`) and, on the roadmap, through an MCP server. API characters get the relevant parts injected into their prompt. Because both paths read the same store, a Mage on the API can plan and a Fighter on Claude Code can pick up exactly where it left off.
+CLIs read it as files (`.fcrpg/chronicle/`) and, on the roadmap, through an MCP server. API characters get the relevant parts injected into their prompt. Because both paths read the same store, a Mage on the API can plan and a Fighter on Claude Code can pick up exactly where it left off.
 
 ---
 

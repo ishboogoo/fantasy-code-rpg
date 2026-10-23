@@ -7,14 +7,14 @@ flowchart LR
   subgraph You
     H[Human / Game Master]
   end
-  subgraph Harness["SAVEPOINT harness"]
+  subgraph Harness["Fantasy Code RPG harness"]
     R[Rules engine<br/>rules.ts]
     B[Battle loop<br/>battle.ts]
     J[Judge<br/>tests · other character · human]
     G[Permission gate<br/>permissionsFor tier]
     E[Economy<br/>Gold + MP]
   end
-  subgraph Chronicle[".savepoint/ — shared context"]
+  subgraph Chronicle[".fcrpg/ — shared context"]
     W[world.json]
     L[lore.md]
     S[scrolls/*.md]
@@ -46,7 +46,7 @@ flowchart LR
 | `src/types.ts` | All shapes. JSON-serializable only. | no |
 | `src/rules.ts` | Every number in WORLD.md: tiers, XP, REL, promotion, curses. | no — pure |
 | `src/economy.ts` | Gold treasury, MP refill windows. | no — pure |
-| `src/store.ts` | `.savepoint/` files: world state + the Chronicle. | files |
+| `src/store.ts` | `.fcrpg/` files: world state + the Chronicle. | files |
 | `src/adapters/*` | Turn "character + permissions + prompt" into a process or HTTP call. | processes, network |
 | `src/gate.ts` | The Gatekeeper: classifies each tool call against the character's tier; read-only shell commands count as reading. | no — pure |
 | `src/quests.ts` | The six quest types and their defaults; the Law's keyword classifier. | no — pure |
@@ -69,7 +69,7 @@ Keep `rules.ts` and `economy.ts` pure. Balance changes should be one-file PRs wi
 
 ## How CLIs and APIs share context
 
-The Chronicle is just files in `.savepoint/chronicle/`. That's deliberate:
+The Chronicle is just files in `.fcrpg/chronicle/`. That's deliberate:
 
 - **CLI characters** (Claude Code, Codex, Gemini CLI) already have file tools, so they can read `lore.md` and the quest scroll directly. The prompt also embeds both.
 - **API characters** have no file access, so the battle loop embeds the same lore and scroll in their prompt.
@@ -97,11 +97,11 @@ Known weakness: Codex's sandbox doesn't separate "write" from "exec", so a T1 Co
 
 ## Instances and save points
 
-Each battle gets a git worktree on branch `savepoint/<battle-id>`, created from your current `HEAD` in `~/.cache/savepoint/instances/<repo>-<hash>/` (override with `SAVEPOINT_INSTANCES`). Heroes, checks and the guard all run there. After every hero's turn the instance commits a save point. At the end:
+Each battle gets a git worktree on branch `fcrpg/<battle-id>`, created from your current `HEAD` in `~/.cache/fcrpg/instances/<repo>-<hash>/` (override with `FCRPG_INSTANCES`). Heroes, checks and the guard all run there. After every hero's turn the instance commits a save point. At the end:
 
 - **critical failure** → the instance is discarded at once;
 - **no changes** → discarded, nothing to review;
-- otherwise → `review: "pending"` until you run `savepoint keep <id>` (fast-forward or merge into your branch; refuses rather than overwrite your uncommitted work) or `savepoint undo <id>` (discard; an undone victory counts as a loss).
+- otherwise → `review: "pending"` until you run `fcrpg keep <id>` (fast-forward or merge into your branch; refuses rather than overwrite your uncommitted work) or `fcrpg undo <id>` (discard; an undone victory counts as a loss).
 
 Folders that aren't git repositories with a commit fall back to running in place, with a warning. `--in-place` forces that.
 
@@ -137,7 +137,7 @@ We surveyed existing open-source projects (October 2026). None combine reliabili
 
 | Project | License | What it gives us | How we'd use it |
 |---|---|---|---|
-| [Claw Orchestrator](https://github.com/Enderfga/claw-orchestrator) | MIT, TS, Node 22 | One interface over Claude Code, Codex, Antigravity, Cursor Agent, OpenCode, custom CLIs; JSONL cost ledger; runtime-enforced `maxBudgetUsd`; MCP server; separates engine self-report from runtime verification | Strongest candidate for a **runtime adapter**: wrap its `SessionManager` as one SAVEPOINT adapter and inherit all its engines and cost tracking |
+| [Claw Orchestrator](https://github.com/Enderfga/claw-orchestrator) | MIT, TS, Node 22 | One interface over Claude Code, Codex, Antigravity, Cursor Agent, OpenCode, custom CLIs; JSONL cost ledger; runtime-enforced `maxBudgetUsd`; MCP server; separates engine self-report from runtime verification | Strongest candidate for a **runtime adapter**: wrap its `SessionManager` as one Fantasy Code RPG adapter and inherit all its engines and cost tracking |
 | [ORCH](https://github.com/oxgeneral/ORCH) | MIT, TS | Task state machine with mandatory review gate, inter-agent messaging, shared context store, git worktree isolation, TUI | Alternative runtime adapter; also a reference for worktrees and messaging |
 | [AgentFlow](https://github.com/harun-yardimci/agentflow) | Apache-2.0, TS | SQLite-backed shared pipeline context exposed as MCP tools | Reference design for the Chronicle MCP server |
 | [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/users) | MIT (core) | Per-key budgets with reset windows, rate limits, spend tracking across 100+ providers | Give each API character its own virtual key → real **Gold** enforcement outside our process |
@@ -145,4 +145,4 @@ We surveyed existing open-source projects (October 2026). None combine reliabili
 | [Guild Hall](https://github.com/XusBadia/guild-hall) | MIT | RPG dashboard visuals (archived) | Inspiration for the web UI |
 | [vibe-kanban](https://github.com/BloopAI/vibe-kanban) | check repo | Popular board for Claude Code / Codex / Gemini tasks | UX reference for the quest board |
 
-**Strategy:** SAVEPOINT owns the *game and trust layer* (rules, judge, permissions, Chronicle) and stays thin. Execution runtimes are pluggable adapters. Our built-in CLI adapters keep it working standalone; a `claw` or `orch` adapter lets power users bring a heavier runtime.
+**Strategy:** Fantasy Code RPG owns the *game and trust layer* (rules, judge, permissions, Chronicle) and stays thin. Execution runtimes are pluggable adapters. Our built-in CLI adapters keep it working standalone; a `claw` or `orch` adapter lets power users bring a heavier runtime.

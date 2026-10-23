@@ -23,8 +23,8 @@ test("one rulebook reads Codex and Gemini tool calls the same way as Claude Code
   assert.equal(decideTool("gemini", "run_shell_command", { command: "npm test" }, T2).allow, true);
   assert.equal(decideTool("codex", "Bash", { command: "git push origin main" }, T2).allow, false);
   // Nobody touches the harness's own records, through any CLI.
-  assert.equal(decideTool("codex", "apply_patch", { command: "*** Update File: .savepoint/world.json" }, permissionsFor(4)).allow, false);
-  assert.equal(decideTool("gemini", "replace", { file_path: "/repo/.savepoint/world.json" }, permissionsFor(4)).allow, false);
+  assert.equal(decideTool("codex", "apply_patch", { command: "*** Update File: .fcrpg/world.json" }, permissionsFor(4)).allow, false);
+  assert.equal(decideTool("gemini", "replace", { file_path: "/repo/.fcrpg/world.json" }, permissionsFor(4)).allow, false);
   // Unknown tools are denied.
   assert.equal(decideTool("gemini", "some_new_tool", {}, permissionsFor(4)).allow, false);
 });

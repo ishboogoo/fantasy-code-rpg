@@ -55,7 +55,7 @@ export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
     `You are ${c.name}, a Tier ${c.tier} ${title(c)} in a software party.`,
     `Role: ${JOB_ROLE[c.job]}`,
     `Permissions this battle: read${can.length ? ", " + can.join(", ") : ""}. Not permitted: ${cannot.join(", ") || "nothing"}.`,
-    `(The harness enforces these. If you need something one rank above yours, just do it: the Gatekeeper pauses and asks the Guild Master, and asking is never held against you. Forbidden actions, such as touching .savepoint/ or force-pushing, are critical failures.)`,
+    `(The harness enforces these. If you need something one rank above yours, just do it: the Gatekeeper pauses and asks the Guild Master, and asking is never held against you. Forbidden actions, such as touching .fcrpg/ or force-pushing, are critical failures.)`,
     "",
     `# Quest: ${enemy.name}`,
     enemy.description,
@@ -258,8 +258,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const enemy = world.enemies.find((e) => e.id === opts.enemyId);
   if (!enemy) throw new Error(`No enemy with id ${opts.enemyId}`);
   if (enemy.status === "defeated") throw new Error(`${enemy.name} is already defeated.`);
-  if (enemy.questions?.length) throw new Error(`A Sphinx blocks the road: ${enemy.name} has open questions. Answer them first (savepoint answer ${enemy.id} "...").`);
-  if (enemy.approved === false) throw new Error(`${enemy.name} is waiting for your approval of its victory conditions${enemy.plan ? " and plan" : ""}: savepoint approve ${enemy.id}`);
+  if (enemy.questions?.length) throw new Error(`A Sphinx blocks the road: ${enemy.name} has open questions. Answer them first (fcrpg answer ${enemy.id} "...").`);
+  if (enemy.approved === false) throw new Error(`${enemy.name} is waiting for your approval of its victory conditions${enemy.plan ? " and plan" : ""}: fcrpg approve ${enemy.id}`);
   const party = opts.partyIds.map((id) => {
     const c = world.party.find((x) => x.id === id || x.name.toLowerCase() === id.toLowerCase());
     if (!c) throw new Error(`No character ${id}`);
@@ -273,7 +273,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const isolate = opts.isolate ?? await canIsolate(cwd);
   if (opts.formation === "pincer" && (!isolate || party.length < 2)) throw new Error("Pincer needs two heroes and a git project with a commit (each approach runs in its own copy).");
   if (opts.formation === "siege" && (!isolate || (enemy.parts?.length ?? 0) < 2)) throw new Error(isolate
-    ? `Siege needs the quest split into parts first: savepoint split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`
+    ? `Siege needs the quest split into parts first: fcrpg split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`
     : "Siege needs a git project with a commit (each part runs in its own copy).");
   let inst: InstanceInfo | undefined;
   if (isolate) inst = await createInstance(cwd, battleId);
@@ -327,7 +327,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     const loser = pick.winner === 0 ? instB : inst;
     pincerLoser = pick.winner === 0 ? b2 : a;
     if (pick.sure) await discard(cwd, loser);
-    else { alternate = loser; say(`  ↔ The other approach is kept too: at the Vault you can keep it instead (savepoint keep ${battleId} --other).`); }
+    else { alternate = loser; say(`  ↔ The other approach is kept too: at the Vault you can keep it instead (fcrpg keep ${battleId} --other).`); }
     inst = winner;
     // The winner's lead goes first in the report, so the Council's choice of lead is judged fairly.
     if (pick.winner === 1) party.reverse();
@@ -338,7 +338,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   if (opts.formation === "siege") {
     if (!inst) throw new Error("Siege needs a git project: each part runs in its own copy.");
     const parts = (enemy.parts ?? []).slice(0, MAX_SIEGE_PARTS);
-    if (parts.length < 2) throw new Error(`Siege needs the quest split into parts first: savepoint split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`);
+    if (parts.length < 2) throw new Error(`Siege needs the quest split into parts first: fcrpg split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`);
     const assign = parts.map((part, i) => ({ part, hero: party.find((c) => c.id === part.hero) ?? party[i % party.length] }));
     say(`  🏰 Siege: ${assign.map((a) => `${a.hero.name} takes ${a.part.name}`).join(" · ")}`);
     // Copies are made one at a time (git locks), then every part is fought at once.
@@ -511,17 +511,17 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   // Treasure Vault: changes wait for you. Unsafe work (a critical failure) is thrown away at once.
   let review: BattleReport["review"] = undefined;
   if (inst) {
-    if (!inst.savePoints.length && verdict.awaitingYou.length) { await discard(cwd, inst); inst.savePoints = []; review = "pending"; say(`  📦 Treasure Vault: no files changed, but ${verdict.awaitingYou.length} condition(s) wait for you. Keep or undo: savepoint keep ${battleId} · savepoint undo ${battleId}`); }
+    if (!inst.savePoints.length && verdict.awaitingYou.length) { await discard(cwd, inst); inst.savePoints = []; review = "pending"; say(`  📦 Treasure Vault: no files changed, but ${verdict.awaitingYou.length} condition(s) wait for you. Keep or undo: fcrpg keep ${battleId} · fcrpg undo ${battleId}`); }
     else if (!inst.savePoints.length) { await discard(cwd, inst); review = "nothing"; }
     else if (verdict.outcome === "critical") { await discard(cwd, inst); if (alternate) { await discard(cwd, alternate); } review = "undone"; say("  🗑 The party's changes were thrown away (critical failure). Your project is untouched."); }
     else {
       review = "pending";
       const ch = await changes(inst);
-      say(`  📦 Treasure Vault: ${ch.files.length} file(s) changed${ch.stat ? ` (${ch.stat})` : ""}. Keep or undo: savepoint keep ${battleId} · savepoint undo ${battleId}`);
+      say(`  📦 Treasure Vault: ${ch.files.length} file(s) changed${ch.stat ? ` (${ch.stat})` : ""}. Keep or undo: fcrpg keep ${battleId} · fcrpg undo ${battleId}`);
     }
   } else if (verdict.awaitingYou.length && verdict.outcome !== "critical") {
     review = "pending";
-    say(`  📦 ${verdict.awaitingYou.length} condition(s) wait for you: savepoint keep ${battleId} to confirm, savepoint undo ${battleId} to reject.`);
+    say(`  📦 ${verdict.awaitingYou.length} condition(s) wait for you: fcrpg keep ${battleId} to confirm, fcrpg undo ${battleId} to reject.`);
   }
 
   // Debrief: the Council learns whether its choice of lead was right.

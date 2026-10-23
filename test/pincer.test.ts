@@ -9,7 +9,7 @@ import { Council } from "../src/council.ts";
 import { battle, keepBattle } from "../src/battle.ts";
 import type { Character } from "../src/types.ts";
 
-process.env.SAVEPOINT_INSTANCES = mkdtempSync(join(tmpdir(), "sp-pi-"));
+process.env.FCRPG_INSTANCES = mkdtempSync(join(tmpdir(), "sp-pi-"));
 
 function setup(cmdA: string, cmdB: string) {
   const dir = mkdtempSync(join(tmpdir(), "sp-pincer-"));

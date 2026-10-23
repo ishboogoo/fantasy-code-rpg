@@ -2,7 +2,7 @@
 
 Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 
-## Act I — "Leaving the Village" (v0.1 ✅ shipped)
+## Act I — "Leaving the Village" (v0.1 ✅ done, not published)
 
 - ✅ Rules engine: tiers, XP, Wilson-bound reliability, promotions, curses
 - ✅ Battle loop with save points, shared scroll, independent judge, regression guard
@@ -10,7 +10,9 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 - ✅ Adapters: claude-code, codex, gemini-cli, anthropic-api, openai-compatible, shell, mock
 - ✅ Terminal UI, status-line HUD, simulated demo campaign, 17 tests
 
-## Act II — "The First Dungeon" (v0.2): make it safe to play for real
+## Act II — "The First Dungeon" (v0.2, first public release): make it safe to play for real
+
+Published as `fantasy-code-rpg` on npm (command: `fcrpg`). How releases work: [docs/RELEASING.md](docs/RELEASING.md).
 
 | Quest | Size | Notes |
 |---|---|---|
@@ -21,14 +23,14 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | ✅ **Quest types** and proof per victory condition | 👺 | `src/quests.ts` |
 | ✅ **The Council**, seats 1–2 (Law, Ledger) with decision records and outcomes | 🐗 | `src/council.ts`, `src/ledger.ts` |
 | Council seat 3: **the Seer** adapter (Jev, Arch-Router, or a small model asked 3×) | 👺 | See docs/DESIGN_PLAN.md §8–9 |
-| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | ✅ Risky quests flagged and stuck battles watched (carry on, retreat, or call for help). ✅ **Siege**: a quest split into parts fought at once and joined (`savepoint split`, `--formation siege`) |
+| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | ✅ Risky quests flagged and stuck battles watched (carry on, retreat, or call for help). ✅ **Siege**: a quest split into parts fought at once and joined (`fcrpg split`, `--formation siege`) |
 | ✅ **Clerk, Scout and Plan** (`request`, `answer`, `plan`, `approve`) and play styles | 🐗 | Next: import from GitHub Issues |
 | Enemy state machine: lurking → engaged → review → defeated / enraged (retrying) / escaped | 👺 | See ORCH in docs/CROSS_REFERENCE.md |
 | **Battlefield**: file globs a battle may touch; edits outside = violation | 👺 | Extend `gate.ts` |
 | ✅ Stop hook: "The enemy still stands!" — no proof, no victory, in Claude Code, Codex and Gemini CLI | 👺 | Capped at 3 pushes per battle |
 | In-flight budget enforcement | 👺 | CLI budget flags where available; LiteLLM keys for API characters |
 | Richer ledger fields in `log.jsonl` (model, tokens, duration) | 🟢 | |
-| `savepoint pause` — the **Stop spell** kill switch | 🟢 | Freezes battles, drops everyone to T0 |
+| `fcrpg pause` — the **Stop spell** kill switch | 🟢 | Freezes battles, drops everyone to T0 |
 | Diminishing XP for repeat Slimes (anti-grind) | 🟢 | Rules + test |
 
 ## Act III — "The Guild Hall" (v0.3): shared world
@@ -50,7 +52,7 @@ The full design is in **[docs/UX_PLAN.md](docs/UX_PLAN.md)**; its §11 "launch s
 
 | Quest | Size | Notes |
 |---|---|---|
-| ✅ `savepoint play`: local web server + live game event stream (SSE) + first battle screen | 🐗 | Binds to 127.0.0.1 with a one-time token |
+| ✅ `fcrpg play`: local web server + live game event stream (SSE) + first battle screen | 🐗 | Binds to 127.0.0.1 with a one-time token |
 | Port the prototype Hero/Foe generators to `assets/` + a sprite-sheet compositor | 🐗 | Style rules enforced in code |
 | ✅ Launch slice: Title, Guild Town, Guild Counter, Quest Board, War Room, live battle, Treasure Vault, Tavern, Inn, Library, Settings (EN/JA) | 🐲 | Wait mode included |
 | ✅ Gatekeeper **allow once / deny / hand off** (Wait mode) in all three CLIs | 👺 | Logged, no reliability penalty. Verified on a real Claude Code 2.1.309 install: ask → allow → victory, ask → deny → retreat, Tier 1 writes without asking. Heroes ask for one rank up only |
@@ -65,7 +67,7 @@ The full design is in **[docs/UX_PLAN.md](docs/UX_PLAN.md)**; its §11 "launch s
 |---|---|---|
 | 🏅 **Gym Badges**: effective tier = min(character tier, project badge cap) | 👺 | Project safety rails gate autonomy |
 | 🎛️ **Tactics presets** (Show No Mercy … Don't Use Magic) on a status-line key | 👺 | One-key cost/risk policy |
-| 🔍 `savepoint scan <id>` with raw counts | 🟢 | Trust in the numbers |
+| 🔍 `fcrpg scan <id>` with raw counts | 🟢 | Trust in the numbers |
 | ⏪ **Chariot rule**: retries reuse seed, every retry is a trial | 🟢 | No save-scumming |
 | ❤️ **Rolling HP** grace countdown before automatic rollback | 🐗 | A window to intervene |
 | 🎁 **Blue chests**: only verified artifacts leave throwaway runs | 🐗 | A trustworthy Chronicle |

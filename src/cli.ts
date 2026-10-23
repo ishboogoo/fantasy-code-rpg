@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// savepoint — command-line entry point.
+// fcrpg — command-line entry point.
 
 import { parseArgs } from "node:util";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,43 +24,43 @@ import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./
 import type { AdapterKind, Character, Enemy, EnemyKind, Formation, JobLine, QuestType, World } from "./types.ts";
 
 const HELP = `
-SAVEPOINT — a 90s-RPG harness for AI agent teams
+Fantasy Code RPG — a 90s-RPG harness for AI agent teams
 
-  savepoint init                               Create .savepoint/ in this folder
-  savepoint recruit <name> --adapter <kind> --job <job> [--model m] [--mp 100 --refill 5]
+  fcrpg init                               Create .fcrpg/ in this folder
+  fcrpg recruit <name> --adapter <kind> --job <job> [--model m] [--mp 100 --refill 5]
                      [--billing api|subscription] [--cmd "..."] [--base-url u] [--skill 0.8]
-  savepoint party                              Show the party
-  savepoint spawn <id> --name "…" --kind orc --level 4 --criteria "a: desc" --criteria "b: desc"
+  fcrpg party                              Show the party
+  fcrpg spawn <id> --name "…" --kind orc --level 4 --criteria "a: desc" --criteria "b: desc"
                      [--type build|fix|improve|explore|maintain|write]
                      [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
-  savepoint spawn --file quest.json            Spawn enemies from a JSON file
-  savepoint split <quest> --part "name: c1,c2" --part "…"   Split a quest into parts for a Siege (--off to undo)
-  savepoint enemies                            Show the bestiary
+  fcrpg spawn --file quest.json            Spawn enemies from a JSON file
+  fcrpg split <quest> --part "name: c1,c2" --part "…"   Split a quest into parts for a Siege (--off to undo)
+  fcrpg enemies                            Show the bestiary
 
   The quest loop, in plain words:
-  savepoint request "<what you want>" [--id q7] Guild Counter: the Clerk turns it into a quest
-  savepoint import github [--label bug] [--limit 10] [--repo owner/name]   Open issues become quests
-  savepoint answer <quest> "<your answer>"     Answer the Clerk's or Scout's questions
-  savepoint plan <quest>                       War Room: read-only scouting report and plan
-  savepoint approve <quest>                    Approve the victory conditions and plan (Adventurer, Tactician)
-  savepoint settings [--play-style story|adventurer|tactician]
-  savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
-  savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
+  fcrpg request "<what you want>" [--id q7] Guild Counter: the Clerk turns it into a quest
+  fcrpg import github [--label bug] [--limit 10] [--repo owner/name]   Open issues become quests
+  fcrpg answer <quest> "<your answer>"     Answer the Clerk's or Scout's questions
+  fcrpg plan <quest>                       War Room: read-only scouting report and plan
+  fcrpg approve <quest>                    Approve the victory conditions and plan (Adventurer, Tactician)
+  fcrpg settings [--play-style story|adventurer|tactician]
+  fcrpg suggest <enemy-id>                 Recommended party for a quest, with reasons
+  fcrpg battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
                      [--in-place]  run in your folder instead of a private copy (no undo)
                      [--formation pincer|siege]  pincer: two heroes each try their own approach; siege: the quest's parts are fought at once
-  savepoint keep <battle-id> [--other]         Treasure Vault: bring a battle's changes into your project (--other: the Pincer's other approach)
-  savepoint undo <battle-id> [--why "..."]      Treasure Vault: throw a battle's changes away (counts as a loss); your reason becomes a house rule
-  savepoint seer <hero> | --off                Seat a hero as the Seer: a cheap, fast model the Council asks three times
-  savepoint council                            How each Council seat has decided, and how often it was right
-  savepoint asks                               Heroes waiting for your answer (Wait mode)
-  savepoint allow|deny <id> · handoff <id> <hero>  Answer them: allow once, deny, or hand the job to another hero
-  savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
-  savepoint fund <gold>                        Add gold to the treasury
-  savepoint demo [--battles 40]                Simulated campaign with mock characters
-  savepoint play [--port 4747] [--demo]        The game in your browser (local only). --demo: a practice guild with simulated heroes
-  savepoint gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
-  savepoint stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
-  savepoint statusline                         One-line HUD for Claude Code's status line
+  fcrpg keep <battle-id> [--other]         Treasure Vault: bring a battle's changes into your project (--other: the Pincer's other approach)
+  fcrpg undo <battle-id> [--why "..."]      Treasure Vault: throw a battle's changes away (counts as a loss); your reason becomes a house rule
+  fcrpg seer <hero> | --off                Seat a hero as the Seer: a cheap, fast model the Council asks three times
+  fcrpg council                            How each Council seat has decided, and how often it was right
+  fcrpg asks                               Heroes waiting for your answer (Wait mode)
+  fcrpg allow|deny <id> · handoff <id> <hero>  Answer them: allow once, deny, or hand the job to another hero
+  fcrpg lore "<fact>"                      Add shared knowledge to the Chronicle
+  fcrpg fund <gold>                        Add gold to the treasury
+  fcrpg demo [--battles 40]                Simulated campaign with mock characters
+  fcrpg play [--port 4747] [--demo]        The game in your browser (local only). --demo: a practice guild with simulated heroes
+  fcrpg gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
+  fcrpg stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
+  fcrpg statusline                         One-line HUD for Claude Code's status line
 
 Adapters: ${Object.keys(ADAPTERS).join(", ")}
 Jobs:     ${Object.keys(JOB_TITLES).join(", ")}
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
 
   if (cmd === "init") {
     store.init();
-    console.log(box("NEW GAME", ["A new world was created in .savepoint/", "Next: recruit a character at the Tavern."]));
+    console.log(box("NEW GAME", ["A new world was created in .fcrpg/", "Next: recruit a character at the Tavern."]));
     return;
   }
   if (cmd === "demo") return demo(Number(values.battles ?? 40));
@@ -188,7 +188,7 @@ async function main(): Promise<void> {
       return;
     }
     case "import": {
-      if (rest[0] !== "github") throw new Error("Usage: import github [--label bug] [--limit 10] [--repo owner/name]. Other trackers: paste the text into savepoint request.");
+      if (rest[0] !== "github") throw new Error("Usage: import github [--label bug] [--limit 10] [--repo owner/name]. Other trackers: paste the text into fcrpg request.");
       const r = await importGithub(world, store, council, cwd, { label: values.label, limit: values.limit ? Number(values.limit) : undefined, repo: values.repo });
       save();
       for (const a of r.added) console.log(`📜 ${a.quest.id} · ${a.quest.name} (${QUEST_TYPES[questTypeOf(a.quest)].label})${a.quest.questions?.length ? " · has questions" : ""}`);
@@ -224,13 +224,13 @@ async function main(): Promise<void> {
       save();
       console.log(`🏰 ${q.name} splits into ${q.parts.length} parts:\n${q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`).join("\n")}`);
       if (loose.length) console.log(`  Not in any part: ${loose.join(", ")}. They are judged on the combined result.`);
-      console.log(`Fight it: savepoint battle ${q.id} --formation siege`);
+      console.log(`Fight it: fcrpg battle ${q.id} --formation siege`);
       return;
     }
     case "approve": {
       const q = world.enemies.find((e) => e.id === rest[0]);
       if (!q) throw new Error("Usage: approve <quest>");
-      if (q.questions?.length) throw new Error(`Answer the open questions first: savepoint answer ${q.id} "..."`);
+      if (q.questions?.length) throw new Error(`Answer the open questions first: fcrpg answer ${q.id} "..."`);
       q.approved = true; if (q.risk?.risky) q.riskApproved = true;
       save();
       console.log(`✅ Approved ${q.name}${q.plan ? " and its plan" : ""}. ${nextStep(world, q)}`);
@@ -243,15 +243,15 @@ async function main(): Promise<void> {
       console.log(box("SETTINGS", [`Play style: ${st.playStyle}`,
         st.playStyle === "story" ? "You describe what you want and judge the result. The guild handles the rest." :
         st.playStyle === "adventurer" ? "You approve victory conditions and plans, and accept or swap the party." :
-        "Every stage is yours to edit.", "Change: savepoint settings --play-style story|adventurer|tactician"]));
+        "Every stage is yours to edit.", "Change: fcrpg settings --play-style story|adventurer|tactician"]));
       return;
     }
     case "battle": {
       const enemyId = rest[0];
       if (!enemyId) throw new Error("Usage: battle <enemy-id> [--party a,b] [--judge tests|auto|<id>]");
       const foe = world.enemies.find((e) => e.id === enemyId);
-      if (foe?.questions?.length) throw new Error(`A Sphinx blocks the road: answer its questions first (savepoint answer ${foe.id} "...").`);
-      if (foe?.approved === false) throw new Error(`${foe.name} is waiting for your approval: savepoint approve ${foe.id}`);
+      if (foe?.questions?.length) throw new Error(`A Sphinx blocks the road: answer its questions first (fcrpg answer ${foe.id} "...").`);
+      if (foe?.approved === false) throw new Error(`${foe.name} is waiting for your approval: fcrpg approve ${foe.id}`);
       // Story mode: the War Room runs on its own before the battle.
       if (foe && !foe.plan && !needsApproval(world) && !foe.questions?.length) {
         const wr = await warRoom(world, store, foe, cwd, values.party?.split(",")[0], council);
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
       console.log(`Recommended party for ${foe.name} (${QUEST_TYPES[questTypeOf(foe)].label} quest · proof: ${QUEST_TYPES[questTypeOf(foe)].proof}):`);
       for (const m of plan.members) console.log(`  ${m.role.toUpperCase().padEnd(8)} ${m.name}${m.reasons.length ? " · " + m.reasons.join("; ") : ""}`);
       for (const wmsg of plan.warnings) console.log(`  ⚠ ${wmsg}`);
-      console.log(`Swap anyone: savepoint battle ${foe.id} --party <lead>,<support> --judge <name>`);
+      console.log(`Swap anyone: fcrpg battle ${foe.id} --party <lead>,<support> --judge <name>`);
       return;
     }
     case "keep": {
@@ -335,7 +335,7 @@ async function main(): Promise<void> {
     case "asks": {
       const waiting = new AskBook(store.chronicleDir).waiting();
       if (!waiting.length) { console.log("No hero is waiting for you."); return; }
-      for (const a of waiting) console.log(`? ${a.id} · ${world.party.find((c) => c.id === a.hero)?.name ?? a.hero} wants to ${NEED_WORDS[a.need]}: ${a.target}\n    savepoint allow ${a.id} · savepoint deny ${a.id} · savepoint handoff ${a.id} <hero>`);
+      for (const a of waiting) console.log(`? ${a.id} · ${world.party.find((c) => c.id === a.hero)?.name ?? a.hero} wants to ${NEED_WORDS[a.need]}: ${a.target}\n    fcrpg allow ${a.id} · fcrpg deny ${a.id} · fcrpg handoff ${a.id} <hero>`);
       return;
     }
     case "allow": case "deny": case "handoff": {
@@ -375,8 +375,8 @@ function questWindow(q: Enemy, title: string): string {
 function warRoomWindow(q: Enemy, r: { verdict: string; scout?: string; planner?: string; questions: string[]; splits: string[] }): string {
   const lines = [`${q.id} · ${q.name}`];
   if (r.scout) lines.push(`Scout: ${r.scout} → ${r.verdict === "proceed" ? "clear to proceed" : r.verdict === "unclear" ? "unclear, needs your answer" : "splits into parts"}`);
-  if (q.risk?.risky) lines.push(`⚠ Risky: ${q.risk.reasons.join("; ")}.`, `  It needs your nod (savepoint approve ${q.id}), and a Pincer is worth considering: --formation pincer`);
-  if (r.verdict === "split" && q.parts) lines.push("It splits into parts that can be fought at the same time (a Siege):", ...q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`), `Fight them all at once: savepoint battle ${q.id} --formation siege · change the parts: savepoint split ${q.id} --part "name: c1,c2"`);
+  if (q.risk?.risky) lines.push(`⚠ Risky: ${q.risk.reasons.join("; ")}.`, `  It needs your nod (fcrpg approve ${q.id}), and a Pincer is worth considering: --formation pincer`);
+  if (r.verdict === "split" && q.parts) lines.push("It splits into parts that can be fought at the same time (a Siege):", ...q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`), `Fight them all at once: fcrpg battle ${q.id} --formation siege · change the parts: fcrpg split ${q.id} --part "name: c1,c2"`);
   if (r.verdict === "unclear") lines.push(...(q.questions ?? []).map((x) => `  ? ${x}`));
   if (q.plan) lines.push(`Plan by ${r.planner}:`, ...q.plan.split("\n").slice(0, 12).map((x) => `  ${x}`));
   if (!r.scout && !r.planner) lines.push("Nobody is free for a desk job: recruit a hero first.");
@@ -384,10 +384,10 @@ function warRoomWindow(q: Enemy, r: { verdict: string; scout?: string; planner?:
 }
 
 function nextStep(world: World, q: Enemy): string {
-  if (q.questions?.length) return `Next: savepoint answer ${q.id} "..."`;
-  if (q.approved === false) return `Next: check it, then savepoint approve ${q.id}${q.plan ? "" : ` (or savepoint plan ${q.id} first)`}`;
-  if (!q.plan && needsApproval(world)) return `Next: savepoint plan ${q.id} (or go straight to savepoint battle ${q.id})`;
-  return `Next: savepoint battle ${q.id}`;
+  if (q.questions?.length) return `Next: fcrpg answer ${q.id} "..."`;
+  if (q.approved === false) return `Next: check it, then fcrpg approve ${q.id}${q.plan ? "" : ` (or fcrpg plan ${q.id} first)`}`;
+  if (!q.plan && needsApproval(world)) return `Next: fcrpg plan ${q.id} (or go straight to fcrpg battle ${q.id})`;
+  return `Next: fcrpg battle ${q.id}`;
 }
 
 async function readStdin(): Promise<string> {
@@ -405,8 +405,8 @@ function hookCli(): HookCli {
 /** Before every tool call (Claude Code PreToolUse, Codex PreToolUse, Gemini BeforeTool). Silent unless a hero is acting. */
 async function gate(): Promise<void> {
   const cli = hookCli();
-  const id = process.env.SAVEPOINT_CHARACTER;
-  const home = process.env.SAVEPOINT_HOME;
+  const id = process.env.FCRPG_CHARACTER;
+  const home = process.env.FCRPG_HOME;
   const raw = await readStdin();
   if (!id || !home) return;
   const s = new Store(dirname(home));
@@ -416,17 +416,17 @@ async function gate(): Promise<void> {
   const decision = c ? decideTool(cli, tool, event.tool_input ?? {}, permissionsFor(c.tier))
     : { allow: false, reason: `Unknown character ${id}.` };
   const m = moveFor(cli, tool, event.tool_input ?? {});
-  const quest = process.env.SAVEPOINT_QUEST || undefined;
+  const quest = process.env.FCRPG_QUEST || undefined;
   if (decision.allow) {
     s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: true });
     return;
   }
   // Above its rank (not forbidden): pause and ask the Guild Master. Forbidden actions are never asked about.
   // Desk jobs never ask, and nobody asks for more than one rank above their own.
-  const oneUp = c && decision.need && tierFor(decision.need) <= c.tier + 1 && process.env.SAVEPOINT_DESK !== "1";
+  const oneUp = c && decision.need && tierFor(decision.need) <= c.tier + 1 && process.env.FCRPG_DESK !== "1";
   if (c && decision.need && !oneUp) {
     s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: false, reason: decision.reason });
-    console.log(denyOutput(cli, `${decision.reason} ${process.env.SAVEPOINT_DESK === "1" ? "This is a read-only job." : "That is more than one rank above yours, so it can't be asked for yet."} Describe what you would do instead.`));
+    console.log(denyOutput(cli, `${decision.reason} ${process.env.FCRPG_DESK === "1" ? "This is a read-only job." : "That is more than one rank above yours, so it can't be asked for yet."} Describe what you would do instead.`));
     return;
   }
   if (c && decision.need) {
@@ -451,16 +451,16 @@ async function gate(): Promise<void> {
 /** When a hero tries to stop (Claude Code / Codex Stop, Gemini AfterAgent): no proof, no victory. */
 async function stopGateCmd(): Promise<void> {
   const cli = hookCli();
-  const id = process.env.SAVEPOINT_CHARACTER, home = process.env.SAVEPOINT_HOME, questId = process.env.SAVEPOINT_QUEST;
+  const id = process.env.FCRPG_CHARACTER, home = process.env.FCRPG_HOME, questId = process.env.FCRPG_QUEST;
   const raw = await readStdin();
-  if (!id || !home || !questId || process.env.SAVEPOINT_DESK === "1") { console.log("{}"); return; }
+  if (!id || !home || !questId || process.env.FCRPG_DESK === "1") { console.log("{}"); return; }
   const w = new Store(dirname(home)).load();
   const quest = w.enemies.find((e) => e.id === questId);
   const hero = w.party.find((c) => c.id === id);
   // Only send back a hero who can write, or can at least ask to: pushing anyone else just wastes turns.
   if (!quest || !hero || hero.tier + 1 < tierFor("write")) { console.log("{}"); return; }
   const event = JSON.parse(raw || "{}") as { cwd?: string };
-  const only = process.env.SAVEPOINT_CRITERIA ? process.env.SAVEPOINT_CRITERIA.split(",") : undefined;
+  const only = process.env.FCRPG_CRITERIA ? process.env.FCRPG_CRITERIA.split(",") : undefined;
   const r = await stopGate({ home, quest, characterId: id, cwd: event.cwd ?? process.cwd(), only });
   console.log(r.keepGoing ? keepGoingOutput(cli, r.reason) : "{}");
 }
@@ -469,7 +469,7 @@ async function stopGateCmd(): Promise<void> {
 function statusline(): void {
   if (!store.exists()) return;
   const w = store.load();
-  const who = process.env.SAVEPOINT_CHARACTER;
+  const who = process.env.FCRPG_CHARACTER;
   const list = who ? w.party.filter((c) => c.id === who) : w.party;
   const hud = list.map((c) => {
     const mp = c.mp ? ` MP${c.mp.current}/${c.mp.max}` : "";
@@ -483,11 +483,11 @@ function statusline(): void {
 async function play(): Promise<void> {
   let dir = cwd;
   if (values.demo) {
-    dir = mkdtempSync(join(tmpdir(), "savepoint-play-"));
+    dir = mkdtempSync(join(tmpdir(), "fcrpg-play-"));
     // A tiny git project, so the demo battles run in their own copies like real ones.
     const { execFileSync } = await import("node:child_process");
     try {
-      const g = (...a: string[]) => execFileSync("git", ["-c", "user.name=Savepoint", "-c", "user.email=savepoint@localhost", ...a], { cwd: dir, stdio: "ignore" });
+      const g = (...a: string[]) => execFileSync("git", ["-c", "user.name=Fantasy Code RPG", "-c", "user.email=fcrpg@localhost", ...a], { cwd: dir, stdio: "ignore" });
       g("init", "-q"); writeFileSync(join(dir, "README.md"), "# Demo project\n"); g("add", "-A"); g("commit", "-q", "-m", "Demo project");
     } catch { /* no git: the demo runs in place */ }
     const s = new Store(dir);
@@ -514,7 +514,7 @@ async function play(): Promise<void> {
           { id: "looks", description: "It looks right to you", proof: "human", met: false }] });
     }
     s.save(w);
-  } else if (!store.exists()) throw new Error("No world here. Run `savepoint init` first, or try `savepoint play --demo`.");
+  } else if (!store.exists()) throw new Error("No world here. Run `fcrpg init` first, or try `fcrpg play --demo`.");
   const { startPlay } = await import("./play.ts");
   const server = await startPlay(dir, Number(values.port ?? 4747));
   console.log(box("FANTASY CODE RPG", ["Open this link in your browser (it only works on this computer):", server.url,
@@ -523,7 +523,7 @@ async function play(): Promise<void> {
 
 /** A self-contained simulated campaign, so anyone can see the mechanics in 5 seconds. */
 async function demo(n: number): Promise<void> {
-  const dir = mkdtempSync(join(tmpdir(), "savepoint-demo-"));
+  const dir = mkdtempSync(join(tmpdir(), "fcrpg-demo-"));
   const s = new Store(dir);
   s.init();
   const world: World = s.load();
@@ -535,7 +535,7 @@ async function demo(n: number): Promise<void> {
   );
   s.addLore("Tests live in test/. Run them with npm test.");
   const kinds: EnemyKind[] = ["slime", "goblin", "orc", "golem", "goblin", "wyvern", "lich", "mimic"];
-  console.log(box("SAVEPOINT DEMO", [
+  console.log(box("FANTASY CODE RPG DEMO", [
     "Two mock fighters: Aria (reliable) and Bram (sloppy).",
     "Cass the Cleric judges. Watch who earns promotions.",
   ]));
@@ -556,7 +556,7 @@ async function demo(n: number): Promise<void> {
   }
   s.save(world);
   console.log("\n" + partyScreen(world));
-  console.log(`\nWorld saved in ${dir}/.savepoint — open chronicle/ to see the shared context.`);
+  console.log(`\nWorld saved in ${dir}/.fcrpg — open chronicle/ to see the shared context.`);
 }
 
 main().catch((e: unknown) => { console.error(`✖ ${e instanceof Error ? e.message : String(e)}`); process.exit(1); });

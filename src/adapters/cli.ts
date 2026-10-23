@@ -1,4 +1,4 @@
-// Adapters for subscription coding CLIs. Each maps SAVEPOINT tiers onto the
+// Adapters for subscription coding CLIs. Each maps Fantasy Code RPG tiers onto the
 // CLI's own sandbox / permission flags.
 //
 // ⚠️  CLI flags change often. Every mapping below is marked VERIFY and is a
@@ -11,10 +11,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { permissionsFor } from "../rules.ts";
 import type { Tier } from "../types.ts";
 import { claudeHooks, codexHookArgs, geminiHooks, type HookCommands } from "../hooks.ts";
-import { join, dirname } from "node:path";
+import { join, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CLI_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "cli.ts");
+// The CLI next to this folder: cli.ts when run from source, cli.js in the published package.
+const HERE = fileURLToPath(import.meta.url);
+const CLI_PATH = join(dirname(HERE), "..", `cli${extname(HERE)}`);
 
 const COMMANDS: HookCommands = {
   gate: `node ${JSON.stringify(CLI_PATH)} gate`,
@@ -32,7 +34,7 @@ function hookSettings(home: string, name: string, settings: Record<string, unkno
 
 /** Tells the hooks who is acting, on which quest, and where the harness keeps its records. */
 function hookEnv(req: AdapterRequest): NodeJS.ProcessEnv {
-  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "", SAVEPOINT_DESK: req.desk ? "1" : "", SAVEPOINT_CRITERIA: req.criteria?.join(",") ?? "" };
+  return { ...process.env, FCRPG_CHARACTER: req.character.id, FCRPG_HOME: req.home ?? "", FCRPG_QUEST: req.questId ?? "", FCRPG_DESK: req.desk ? "1" : "", FCRPG_CRITERIA: req.criteria?.join(",") ?? "" };
 }
 
 function billing(req: AdapterRequest): "subscription" | "api" {

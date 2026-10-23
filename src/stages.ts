@@ -33,7 +33,7 @@ export function adventurerOffer(world: World): string | null {
   const kept = world.battles.filter((b) => b.review === "kept").length;
   if (kept < 3) return null;
   s.offeredAdventurer = true;
-  return "You've kept three quests. Want to approve plans and pick parties yourself? Try: savepoint settings --play-style adventurer";
+  return "You've kept three quests. Want to approve plans and pick parties yourself? Try: fcrpg settings --play-style adventurer";
 }
 
 export function setPlayStyle(world: World, style: string): PlayStyle {
@@ -310,7 +310,7 @@ export async function debrief(world: World, store: Store, quest: Enemy, outcome:
   try { text = (await ask(world, scribe, prompt, cwd, store)).text; } catch { return []; }
   const known = store.lore();
   const lessons = [...text.matchAll(/^LESSON:\s*(.+)$/gim)].map((m) => m[1].replace(/\s+/g, " ").replace(/\/(tmp|var|private|Users|home)\/[^\s`'"]+/g, "<path>").trim().slice(0, 200))
-    .filter((l) => l && !known.includes(l) && !/\.savepoint|harness|gatekeeper|permission|denied|write access/i.test(l)).slice(0, 3);
+    .filter((l) => l && !known.includes(l) && !/\.fcrpg|harness|gatekeeper|permission|denied|write access/i.test(l)).slice(0, 3);
   for (const l of lessons) store.addLore(`${l} (lesson from ${quest.id}, written by ${scribe.name})`);
   if (lessons.length) store.event({ type: "lessons", quest: quest.id, by: scribe.id, lessons });
   return lessons;

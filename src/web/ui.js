@@ -63,7 +63,7 @@
 
   // ---- Server ----
   G.api = function (path, body) {
-    var opts = { headers: { 'x-savepoint-token': T, 'content-type': 'application/json' } };
+    var opts = { headers: { 'x-fcrpg-token': T, 'content-type': 'application/json' } };
     if (body) { opts.method = 'POST'; opts.body = JSON.stringify(body); }
     return fetch(path, opts).then(function (r) { return r.json(); });
   };

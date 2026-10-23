@@ -20,9 +20,9 @@ You decide at Request (what "done" means), Plan, and Review. In Story mode, only
 
 | Stage | Scene | What really happens | Why it improves the result | Status |
 |---|---|---|---|---|
-| 1 Request | Guild Counter | The Clerk restates the goal, proposes victory conditions each with a proof (command, judge or you), sets a budget, flags anything unclear | Most failed tasks were never defined | ✅ `savepoint request`: the Clerk writes conditions with proofs; unsafe checks are refused; questions block the road |
-| 2 Scout | Scouts' Lodge | Read-only recon: map files, reproduce the bug, pull related lore | Catches wrong diagnoses and hidden extra work cheaply | ✅ in `savepoint plan`; loops back when unclear or really several quests |
-| 3 Plan | War Room | Steps, files, test strategy, risks, cost; big quests split | Plans are checked in seconds; bad code takes hours | ✅ `savepoint plan`, `approve`; the plan goes to the party |
+| 1 Request | Guild Counter | The Clerk restates the goal, proposes victory conditions each with a proof (command, judge or you), sets a budget, flags anything unclear | Most failed tasks were never defined | ✅ `fcrpg request`: the Clerk writes conditions with proofs; unsafe checks are refused; questions block the road |
+| 2 Scout | Scouts' Lodge | Read-only recon: map files, reproduce the bug, pull related lore | Catches wrong diagnoses and hidden extra work cheaply | ✅ in `fcrpg plan`; loops back when unclear or really several quests |
+| 3 Plan | War Room | Steps, files, test strategy, risks, cost; big quests split | Plans are checked in seconds; bad code takes hours | ✅ `fcrpg plan`, `approve`; the plan goes to the party |
 | 4 Form party | War Room | Recommended lead, supports, judge, formation, tactics; swap anyone | Puts each AI on work it has a record at; keeps the judge independent | ✅ recommendation + warnings, lead chosen by the Council |
 | 5 Battle | Battlefield | Heroes work in a private copy; a save point after each turn | Nothing breaks your project; any step can be undone | ✅ instances + save points |
 | 6 Review | Treasure Vault | Proof per condition, cross-company judge, Keep / Undo | Evidence, not claims | ✅ Keep / Undo, fair cross-company vote per condition, your conditions settled at Keep, Pincer side-by-side |
@@ -133,7 +133,7 @@ flowchart TB
 
 ## 8. The Council
 
-Every decision is answered by the cheapest seat that is sure enough, written to `chronicle/decisions.jsonl`, and marked right or wrong by the Debrief (`outcomes.jsonl`). Code: `src/council.ts`. `savepoint council` prints each seat's record.
+Every decision is answered by the cheapest seat that is sure enough, written to `chronicle/decisions.jsonl`, and marked right or wrong by the Debrief (`outcomes.jsonl`). Code: `src/council.ts`. `fcrpg council` prints each seat's record.
 
 | Seat | Decides | Cost | Passes up when | Status |
 |---|---|---|---|---|
@@ -171,14 +171,14 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 
 1. ✅ **Quest record upgrade.** Quest types, proof per condition, default budgets, "needs".
 2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. ✅ One rulebook enforced through hooks in Claude Code, Codex and Gemini CLI.
-3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. ✅ The Seer (`savepoint seer <hero>`) confirms quest types with three unanimous votes.
+3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. ✅ The Seer (`fcrpg seer <hero>`) confirms quest types with three unanimous votes.
 4. ✅ **Party recommendation** through the Council (Law + Ledger). ✅ Learning from the leads you pick.
-5. ✅ **Battle event stream** and the first browser screen: `savepoint play` shows the live battle (moves, save points, damage, verdict), the party, the Quest Board (Q) and the Treasure Vault (V) with Keep / Undo / Approve. `--demo` stages a simulated party.
+5. ✅ **Battle event stream** and the first browser screen: `fcrpg play` shows the live battle (moves, save points, damage, verdict), the party, the Quest Board (Q) and the Treasure Vault (V) with Keep / Undo / Approve. `--demo` stages a simulated party.
 6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. ✅ "No proof, no victory" stop hook in all three CLIs.
 7. ✅ **Debrief**: lessons into the lore after every battle; your undo reasons become house rules.
 8. ✅ **Launch scenes in the browser**: Title, Guild Town, Guild Counter, Quest Board, War Room, Battlefield, Treasure Vault, Tavern, Inn, Library and Settings, in English and Japanese. ✅ The Decision window: a hero reaching one rank above its own pauses and asks (allow once / deny / hand to another hero), from any scene or the command line.
 9. ✅ **Pincer formation**: two approaches in two copies at once; checks decide first, then an order-swapped cross-company vote; a split keeps both for you.
 10. ✅ **Real install check, Claude Code** (2.1.309): a novice asks to write → you allow → victory; you deny → retreat, not a loss; a Tier 1 hero writes without asking. Fixes from this run: heroes ask for one rank up only, desk jobs never ask, read-only commands count as reading, no free judge means you decide, lessons stay about the project. Codex and Gemini CLI still need the same check on real installs.
-11. ✅ **Siege**: the Scout suggests parts (each covering some victory conditions) or you set them with `savepoint split`; each hero takes a part, all at once, each in their own copy; the parts are joined in order, and one that clashes is set aside. Each hero answers only for their own part, and the stop gate only holds them to their part's checks. A split quest is fought as a Siege by default. Verified with two real Claude Code heroes.
+11. ✅ **Siege**: the Scout suggests parts (each covering some victory conditions) or you set them with `fcrpg split`; each hero takes a part, all at once, each in their own copy; the parts are joined in order, and one that clashes is set aside. Each hero answers only for their own part, and the stop gate only holds them to their part's checks. A split quest is fought as a Siege by default. Verified with two real Claude Code heroes.
 12. ✅ **Risk and "stuck" decisions through the Council.** Risk: after the plan, the Law reads the quest for costly words (database changes, deleting, money, security, secrets, production, rewriting history) and remembers quests that beat a party before; the Seer settles unclear cases, and unsure counts as risky. A risky quest waits for your nod in every play style and the War Room suggests a Pincer. Stuck: between Relay turns the Law reads progress (files changed, checks newly passing), idle turns and the budget; the Seer settles unclear cases; when nobody is sure, the party carries on. The calls are carry on, retreat, or call a stronger hero who takes the next turn. When every condition is proven by a check and all pass, the rest of the party stands down; heroes who never got a turn share neither reward nor blame.
-13. **Public release**: trademark check for "Fantasy Code RPG", licence review, contributor guide, tagged release.
+13. ✅ **Public release prep**: renamed the command to `fcrpg` and the package to `fantasy-code-rpg` (the npm name `savepoint` is taken by another agent tool), a build to plain JavaScript for the published package, the font bundled under its own licence, CI that installs the packed release, a tag-driven release workflow, a changelog and `docs/RELEASING.md`. Left for the maintainer: the official trademark search, filling in the GitHub owner and a conduct contact, and the first publish.

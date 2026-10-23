@@ -14,3 +14,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: node src/cli.ts demo --battles 20
+      # The published package: build, pack, install it somewhere clean and play a demo from it.
+      - run: npm pack
+      - run: |
+          mkdir -p /tmp/pkgtest && cd /tmp/pkgtest && npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE"/fantasy-code-rpg-*.tgz
+          npx fcrpg demo --battles 5

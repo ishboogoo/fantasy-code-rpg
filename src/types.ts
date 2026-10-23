@@ -1,5 +1,5 @@
-// Core data types for SAVEPOINT. Plain JSON-serializable shapes only,
-// so the whole world state can live in .savepoint/world.json.
+// Core data types for Fantasy Code RPG. Plain JSON-serializable shapes only,
+// so the whole world state can live in .fcrpg/world.json.
 
 export type Tier = 0 | 1 | 2 | 3 | 4;
 export type JobLine = "fighter" | "mage" | "cleric" | "thief" | "bard";

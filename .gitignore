@@ -1,4 +1,6 @@
 node_modules/
-.savepoint/
+.fcrpg/
 *.log
 .DS_Store
+dist/
+*.tgz

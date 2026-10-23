@@ -10,7 +10,7 @@ import { battle } from "../src/battle.ts";
 import { assessRisk, riskWords } from "../src/stages.ts";
 import type { Character, Enemy, Tier } from "../src/types.ts";
 
-process.env.SAVEPOINT_INSTANCES = mkdtempSync(join(tmpdir(), "sp-wa-"));
+process.env.FCRPG_INSTANCES = mkdtempSync(join(tmpdir(), "sp-wa-"));
 
 function setup(heroes: Array<[string, string, Tier?]>) {
   const dir = mkdtempSync(join(tmpdir(), "sp-watch-"));

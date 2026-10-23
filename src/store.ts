@@ -1,5 +1,5 @@
 // Persistence: world state + the Chronicle (shared context).
-// Everything is plain files under .savepoint/ so any CLI agent can read it
+// Everything is plain files under .fcrpg/ so any CLI agent can read it
 // with its own file tools, and humans can read it with `cat`.
 
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync } from "node:fs";
@@ -10,7 +10,7 @@ export class Store {
   readonly root: string;
 
   constructor(projectDir: string) {
-    this.root = join(projectDir, ".savepoint");
+    this.root = join(projectDir, ".fcrpg");
   }
 
   get chronicleDir(): string { return join(this.root, "chronicle"); }
@@ -30,7 +30,7 @@ export class Store {
   }
 
   load(): World {
-    if (!this.exists()) throw new Error("No world here. Run `savepoint init` first.");
+    if (!this.exists()) throw new Error("No world here. Run `fcrpg init` first.");
     return JSON.parse(readFileSync(join(this.root, "world.json"), "utf8")) as World;
   }
 

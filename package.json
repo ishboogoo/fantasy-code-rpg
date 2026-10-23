@@ -1,20 +1,57 @@
 {
-  "name": "savepoint",
-  "version": "0.1.0",
-  "description": "A 90s-RPG harness for AI agent teams. Agents earn autonomy by proving they're reliable.",
+  "name": "fantasy-code-rpg",
+  "version": "0.2.0",
+  "description": "A 90s-RPG harness for AI agent teams: Claude Code, Codex and Gemini CLI heroes earn autonomy by proving they're reliable.",
   "type": "module",
-  "bin": { "savepoint": "src/cli.ts" },
-  "engines": { "node": ">=22.18" },
+  "bin": {
+    "fcrpg": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "start": "node src/cli.ts",
     "demo": "node src/cli.ts demo",
     "test": "node --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "prepack": "npm run build"
   },
-  "keywords": ["ai-agents", "multi-agent", "orchestration", "claude-code", "codex", "gemini-cli", "rpg", "harness"],
+  "keywords": [
+    "agent-harness",
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "fantasy-code-rpg",
+    "gemini-cli",
+    "harness",
+    "llm",
+    "multi-agent",
+    "orchestration",
+    "permissions",
+    "rpg"
+  ],
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.9.0"
+  },
+  "files": [
+    "dist",
+    "src/web",
+    "assets/generators",
+    "assets/brand/rain.png",
+    "assets/brand/cover.png",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/fantasy-code-rpg.git"
+  },
+  "homepage": "https://github.com/OWNER/fantasy-code-rpg#readme",
+  "bugs": {
+    "url": "https://github.com/OWNER/fantasy-code-rpg/issues"
   }
 }

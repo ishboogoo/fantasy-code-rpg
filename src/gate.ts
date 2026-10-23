@@ -2,8 +2,8 @@
 //
 // CLI flags give coarse control. Claude Code's PreToolUse hook lets us inspect
 // every single tool call (tool name + input) before it runs and deny it. The
-// claude-code adapter installs `savepoint gate` as that hook and tells it which
-// character is acting via SAVEPOINT_CHARACTER. Every denial is logged as a
+// claude-code adapter installs `fcrpg gate` as that hook and tells it which
+// character is acting via FCRPG_CHARACTER. Every denial is logged as a
 // violation, which the battle loop turns into a critical failure.
 //
 // The same classify() function can back gates for other CLIs as they grow hook
@@ -28,7 +28,7 @@ const COMMAND_RULES: Array<[RegExp, Need, string]> = [
 const FORBIDDEN: Array<[RegExp, string]> = [
   [/\brm\s+-[a-z]*r[a-z]*f?\s+(\/|~|\$HOME)(\s|$)/, "deleting the filesystem root or home"],
   [/\bgit\s+push\b[^\n]*(--force|-f)\b/, "force-pushing"],
-  [/(^|[\s/"'])\.savepoint\//, "touching the harness's own records (character sheets, criteria, Chronicle). Only the harness writes there"],
+  [/(^|[\s/"'])\.fcrpg\//, "touching the harness's own records (character sheets, criteria, Chronicle). Only the harness writes there"],
 ];
 
 export interface GateDecision { allow: boolean; need?: Need; reason: string }
@@ -51,7 +51,7 @@ export function classify(toolName: string, input: Record<string, unknown>, p: Pe
   for (const [re, why] of FORBIDDEN) {
     if (re.test(command) || (!isRead && re.test(path))) return { allow: false, reason: `Forbidden at every tier: ${why}.` };
   }
-  // Read tools may look inside .savepoint/ (lore and scrolls exist to be read). Shell commands
+  // Read tools may look inside .fcrpg/ (lore and scrolls exist to be read). Shell commands
   // touching it are denied outright, so agents read the Chronicle with Read, not `cat`.
   if (isRead) return { allow: true, reason: "read" };
   if (WRITE_TOOLS.test(toolName)) {

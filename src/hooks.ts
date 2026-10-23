@@ -1,5 +1,5 @@
 // One rulebook, three CLIs. Claude Code, Codex and Gemini CLI each call
-// `savepoint gate --cli <name>` before every tool call and `savepoint stop-gate
+// `fcrpg gate --cli <name>` before every tool call and `fcrpg stop-gate
 // --cli <name>` when the hero wants to stop. This file translates each CLI's
 // tool names and reply formats to and from the single rulebook in gate.ts.
 //

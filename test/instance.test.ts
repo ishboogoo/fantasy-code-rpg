@@ -9,7 +9,7 @@ import { battle, keepBattle, undoBattle } from "../src/battle.ts";
 import { Council } from "../src/council.ts";
 import type { Character, Enemy } from "../src/types.ts";
 
-process.env.SAVEPOINT_INSTANCES = mkdtempSync(join(tmpdir(), "sp-instances-"));
+process.env.FCRPG_INSTANCES = mkdtempSync(join(tmpdir(), "sp-instances-"));
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), "sp-repo-"));

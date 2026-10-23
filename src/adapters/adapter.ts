@@ -14,7 +14,7 @@ export interface AdapterRequest {
   maxTurns: number;
   /** Gold the adapter may spend on this call. Adapters should stop or refuse above it. */
   goldLimit: number;
-  /** Absolute path of the .savepoint/ folder, for adapters that install hooks. */
+  /** Absolute path of the .fcrpg/ folder, for adapters that install hooks. */
   home?: string;
   /** The quest being fought, so the stop hook knows which checks to run. */
   questId?: string;
@@ -36,7 +36,7 @@ export interface AdapterResult {
 
 export interface Adapter {
   kind: AdapterKind;
-  /** Human-readable note on how this adapter enforces tiers. Shown in `savepoint party`. */
+  /** Human-readable note on how this adapter enforces tiers. Shown in `fcrpg party`. */
   enforcement: string;
   /** Lowest tier this adapter can safely run at. The battle refuses to start below it. */
   minTier?: number;

@@ -15,14 +15,14 @@ Researched across 28 mechanics from roughly 1986–2002 (plus one later remake).
 #### 1. ✨ Glimmer — skills are learned only at the edge of ability
 *From Romancing SaGa 2,* where new techniques spark mid-battle more often when the enemy is a good match for the fighter, and never against trivial foes.
 
-**In SAVEPOINT:** when a battle is won, the harness rolls a *spark* whose chance depends on the gap between the enemy's difficulty and the character's tier. It peaks when they match and is zero when the enemy is far too easy. A spark distils the winning approach into a candidate skill in the Chronicle's **Dojo**. The skill becomes real only after *another* character wins with it.
+**In Fantasy Code RPG:** when a battle is won, the harness rolls a *spark* whose chance depends on the gap between the enemy's difficulty and the character's tier. It peaks when they match and is zero when the enemy is far too easy. A spark distils the winning approach into a candidate skill in the Chronicle's **Dojo**. The skill becomes real only after *another* character wins with it.
 
 **Why it matters:** agents learn from challenging work, and farming easy tasks produces nothing. It's an anti-grind rule and a skill library in one.
 
 #### 2. ⚡ Dual & Triple Techs — combos that prove they're worth it
 *From Chrono Trigger,* where specific party members together unlock combo attacks.
 
-**In SAVEPOINT:** every pairing is logged (Codex implements + Claude reviews, Mage plans + Fighter builds + Cleric tests). A pairing becomes a named **Tech** only when its reliability bound clearly beats the best single member's. Techs appear in the battle menu only when everyone is available and has MP or Gold.
+**In Fantasy Code RPG:** every pairing is logged (Codex implements + Claude reviews, Mage plans + Fighter builds + Cleric tests). A pairing becomes a named **Tech** only when its reliability bound clearly beats the best single member's. Techs appear in the battle menu only when everyone is available and has MP or Gold.
 
 **Why it matters:** multi-agent setups cost more. This proves which combinations actually earn their cost, and quietly drops those that don't.
 
@@ -43,21 +43,21 @@ Pair it with DQ's **enemy awareness**: what works against each enemy kind is sha
 #### 4. ❤️ Rolling HP — a countdown before damage lands
 *From EarthBound,* where damage drains HP gradually so you can heal before a character falls.
 
-**In SAVEPOINT:** a run of tool failures, a spend spike, or an edit to a protected path starts a visible countdown on the status line. A Cleric or you can "heal" by approving or fixing. At zero, the harness reverts to the save point and blocks the next action.
+**In Fantasy Code RPG:** a run of tool failures, a spend spike, or an edit to a protected path starts a visible countdown on the status line. A Cleric or you can "heal" by approving or fixing. At zero, the harness reverts to the save point and blocks the next action.
 
 **Why it matters:** no silent failure and no abrupt kill. There's always a window to step in.
 
 #### 5. 🎁 Blue Chests — throwaway runs, gated memories
 *From Lufia II's Ancient Cave,* where everything resets on exit except rare blue-chest items.
 
-**In SAVEPOINT:** scouting runs happen in a disposable worktree. When they end, only "blue-chest" artifacts are offered to the Chronicle: a regression test, a confirmed root cause, a reusable command. Each must pass a check first (e.g. the test fails on main and passes with the fix). Everything else is discarded.
+**In Fantasy Code RPG:** scouting runs happen in a disposable worktree. When they end, only "blue-chest" artifacts are offered to the Chronicle: a regression test, a confirmed root cause, a reusable command. Each must pass a check first (e.g. the test fails on main and passes with the fix). Everything else is discarded.
 
 **Why it matters:** shared memory's biggest risks are junk and poisoning. This keeps the Chronicle trustworthy.
 
 #### 6. 🏅 Gym Badges — the project earns trust too
 *From the first Pokémon games,* where traded creatures above a level set by your badges won't obey.
 
-**In SAVEPOINT:** `effective tier = min(character tier, project badge cap)`. The repository earns badges:
+**In Fantasy Code RPG:** `effective tier = min(character tier, project badge cap)`. The repository earns badges:
 
 | Badge | Earned by |
 |---|---|
@@ -71,7 +71,7 @@ A T4 Hero in a repo with no tests acts as T1. Autonomy depends on the agent's re
 
 ### More mechanics worth building
 
-| From | Mechanic | SAVEPOINT version | What it measures | Size |
+| From | Mechanic | Fantasy Code RPG version | What it measures | Size |
 |---|---|---|---|---|
 | FF IV/VI | Active Time Battle gauge | Each character's ATB bar fills with throughput and rate-limit headroom; the orchestrator dispatches to whoever is ready. **Wait mode** pauses everything while you decide. | Fair dispatch, idle agents, rate limits | M |
 | FF V | Job mastery, carried abilities | Master a job → its best habit (e.g. "run tests before claiming done") becomes a passive in every job | Good behaviour transferring across roles | M |
@@ -95,7 +95,7 @@ A T4 Hero in a repo with no tests acts as T1. Autonomy depends on the agent's re
 | Star Ocean, Persona | Affection, bonds | Pairwise **bond** = joint success rate; strong bonds unlock Techs | Pair coordination | S |
 | Baldur's Gate | Real-time with pause | Auto-pause on triggers (cost spike, protected path) | Human interrupts | M |
 | Fallout | Perks | Every few levels, *you* pick a perk for a character | Scarce, deliberate upgrades | S |
-| Final Fantasy | Scan / Libra | `savepoint scan <id>` shows every stat **with raw counts** | Trust in the numbers | S |
+| Final Fantasy | Scan / Libra | `fcrpg scan <id>` shows every stat **with raw counts** | Trust in the numbers | S |
 
 ---
 
@@ -138,7 +138,7 @@ Claude Code exposes hook events. Several can **block**, which means the game's f
 
 | Pitfall | Countermeasure |
 |---|---|
-| **Reward hacking:** an agent "lowers HP" by editing the acceptance criteria or tests | Criteria are locked at quest start (stored in `.savepoint/`, which the Gatekeeper protects); test files can be owned by the Cleric role; XP only from an independent judge |
+| **Reward hacking:** an agent "lowers HP" by editing the acceptance criteria or tests | Criteria are locked at quest start (stored in `.fcrpg/`, which the Gatekeeper protects); test files can be owned by the Cleric role; XP only from an independent judge |
 | **Grinding / farming Metal Slimes** | Difficulty scales with tier (FF VIII), zero Glimmer chance on easy foes (SaGa), Reputation loss for beating weaker enemies (Ogre Battle) |
 | **Save-scumming:** retrying until you get lucky | Chariot rule: every retry is a trial in the reliability bound, and replays reuse the same seed |
 | **Stale stats** after a model update | Time-weighted trials; reset when the model version changes (DQ's "phase change") |

@@ -1,6 +1,6 @@
 # Cross-reference: what other projects teach us
 
-We read through the closest open-source projects (October 2026) for details SAVEPOINT must account for.
+We read through the closest open-source projects (October 2026) for details Fantasy Code RPG must account for.
 Each finding ends with what we're doing about it: ✅ done in v0.1, 🗺️ on the roadmap, ⚠️ a risk to manage.
 
 ---
@@ -10,7 +10,7 @@ Each finding ends with what we're doing about it: ✅ done in v0.1, 🗺️ on t
 ### Claw Orchestrator — MIT, TypeScript, ~600★
 One interface over Claude Code, Codex, Antigravity, Cursor Agent, OpenCode and custom CLIs. Long-lived sessions, a JSONL cost ledger, an MCP server, Planner/Coder/Reviewer loops, multi-agent "councils".
 
-| Detail | Lesson for SAVEPOINT |
+| Detail | Lesson for Fantasy Code RPG |
 |---|---|
 | Ledger rows keep the engine's **self-reported result separate from the runtime's own verification** | Exactly our anti-cheat rule. ✅ `DONE:` lines are claims; only checks or a judge award HP damage |
 | Each ledger row records engine, model, tokens, cost, duration | 🗺️ Extend `log.jsonl` to the same fields so battles are auditable and comparable across adapters |
@@ -27,7 +27,7 @@ Formal task state machine (`todo → in_progress → review → done`, with `ret
 | Git worktree per agent | ⚠️ **Biggest gap in v0.1.** All characters act in the same checkout, so parallel battles would collide. 🗺️ One worktree per character per battle, created at the save point; victory merges, defeat discards |
 | Explicit `retrying` state with validated transitions | 🗺️ Replace `lurking/engaged/defeated/fled` with a proper state machine including **"enraged"** (retrying) and **"escaped"** (failed after N retries) |
 | Mandatory review gate before `done` | ✅ Judge step. 🗺️ Make it mandatory for T3+ battles even when tests pass |
-| Headless daemon for CI | 🗺️ `savepoint serve`: watches an issue tracker and spawns **random encounters** |
+| Headless daemon for CI | 🗺️ `fcrpg serve`: watches an issue tracker and spawns **random encounters** |
 
 ### AgentFlow — Apache-2.0, TypeScript
 Pipelines over Claude Code / Codex / Gemini CLI / Antigravity in worktrees, SQLite-backed shared context exposed as MCP tools, an interactive-questions tool.
@@ -104,15 +104,15 @@ Turns new issues into RPG quests with XP and celebrates merges.
 | Per task type, not global | ✅ REL per job line. 🗺️ Also per enemy kind (a Fighter great at Orcs may be bad at Liches) |
 | Thresholds set *before* incidents | ✅ Curse rule is in the rulebook, not decided after the fact |
 | Oversight never removed | 🗺️ **Audit sampling** at T4: the harness randomly sends 1 in N victories to a human judge |
-| Kill switch | 🗺️ `savepoint pause` — **"Stop" spell**: freezes all battles, drops everyone to T0 until you resume |
+| Kill switch | 🗺️ `fcrpg pause` — **"Stop" spell**: freezes all battles, drops everyone to T0 until you resume |
 
-**LiteLLM proxy budgets**: per key/user/team, reset windows, multiple windows per key, pre-call budget reservation. Important caveat: budgets need Postgres, and **fail open** without it. ⚠️ If we use LiteLLM for Gold, `savepoint doctor` must check budgets are really enforced.
+**LiteLLM proxy budgets**: per key/user/team, reset windows, multiple windows per key, pre-call budget reservation. Important caveat: budgets need Postgres, and **fail open** without it. ⚠️ If we use LiteLLM for Gold, `fcrpg doctor` must check budgets are really enforced.
 
 ---
 
 ## Claude Code's hook system
 
-The hook reference lists events we can hook into. These give SAVEPOINT precision and feel:
+The hook reference lists events we can hook into. These give Fantasy Code RPG precision and feel:
 
 | Hook event | Use |
 |---|---|
@@ -123,7 +123,7 @@ The hook reference lists events we can hook into. These give SAVEPOINT precision
 | `Notification` (`idle_prompt`, `permission_prompt`) | 🗺️ **"!" speech bubble** + chime when a character waits for you |
 | `TaskCompleted` | 🗺️ Small XP tick and sound |
 | `SessionStart` | 🗺️ Title-screen jingle + party status |
-| Status line | ✅ `savepoint statusline` HUD |
+| Status line | ✅ `fcrpg statusline` HUD |
 
 ---
 

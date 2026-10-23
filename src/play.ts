@@ -1,4 +1,4 @@
-// `savepoint play`: the game in your browser. A tiny local server (no
+// `fcrpg play`: the game in your browser. A tiny local server (no
 // dependencies) that serves the page (src/web), the art generators, the world
 // state, a live stream of game events (Server-Sent Events), and the in-game
 // commands. It binds to 127.0.0.1 only and every data request carries a
@@ -33,7 +33,7 @@ const ASSETS: Record<string, string> = {
   "/brand/cover.png": join(ROOT, "assets", "brand", "cover.png"),
 };
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".cjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8", ".png": "image/png" };
+  ".css": "text/css; charset=utf-8", ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 
 const COMPANY: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", google: "Gemini", mock: "Simulated", shell: "A command" };
 
@@ -216,10 +216,10 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     const send = (code: number, type: string, data: string | Buffer) => {
       res.writeHead(code, { "content-type": type, "cache-control": "no-store", "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'" });
+        "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'" });
       res.end(data);
     };
-    const authed = url.searchParams.get("t") === token || req.headers["x-savepoint-token"] === token;
+    const authed = url.searchParams.get("t") === token || req.headers["x-fcrpg-token"] === token;
     try {
       if (url.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; }
       // Art, styles and scripts carry no project data. The page and the API need the key.
@@ -229,7 +229,7 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         if (!file.startsWith(WEB) || !existsSync(file)) return send(404, "text/plain", "Not found");
         return send(200, TYPES[extname(file)] ?? "application/octet-stream", readFileSync(file));
       }
-      if (!authed) return send(403, "text/plain", "Open the link printed by `savepoint play` (it carries a one-time key).");
+      if (!authed) return send(403, "text/plain", "Open the link printed by `fcrpg play` (it carries a one-time key).");
       if (url.pathname === "/") return send(200, TYPES[".html"], readFileSync(join(WEB, "index.html")));
       if (url.pathname === "/api/state") return send(200, "application/json", JSON.stringify(snapshot(store, council, { fighting })));
       if (url.pathname === "/api/connections") return send(200, "application/json", JSON.stringify(await connections()));

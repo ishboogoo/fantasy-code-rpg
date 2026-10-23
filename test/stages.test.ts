@@ -10,7 +10,7 @@ import { request, warRoom, safeCheck, setPlayStyle, adventurerOffer } from "../s
 import { battle, keepBattle, anonymize, chooseJudges } from "../src/battle.ts";
 import type { Character, Enemy } from "../src/types.ts";
 
-process.env.SAVEPOINT_INSTANCES = mkdtempSync(join(tmpdir(), "sp-instances-"));
+process.env.FCRPG_INSTANCES = mkdtempSync(join(tmpdir(), "sp-instances-"));
 
 const hero = (id: string, job: Character["job"], adapter: Character["adapter"] = "mock", tier: Character["tier"] = 1): Character => ({
   id, name: id[0].toUpperCase() + id.slice(1), adapter, job, tier, level: 3, xp: 0, totalXp: 0, records: {}, status: [], recruitedAt: "",

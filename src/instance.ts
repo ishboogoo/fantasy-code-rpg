@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { runProcess } from "./adapters/adapter.ts";
 import type { InstanceInfo } from "./types.ts";
 
-const GIT_ID = ["-c", "user.name=Savepoint", "-c", "user.email=savepoint@localhost", "-c", "commit.gpgsign=false"];
+const GIT_ID = ["-c", "user.name=Fantasy Code RPG", "-c", "user.email=fcrpg@localhost", "-c", "commit.gpgsign=false"];
 
 async function git(cwd: string, ...args: string[]): Promise<{ code: number; out: string; err: string }> {
   const r = await runProcess("git", args, { cwd, timeoutMs: 120_000 });
@@ -34,18 +34,18 @@ function excludeHarness(repoRoot: string, gitDir: string): void {
   const p = join(gitDir, "info", "exclude");
   mkdirSync(join(gitDir, "info"), { recursive: true });
   const cur = existsSync(p) ? readFileSync(p, "utf8") : "";
-  if (!/^\/?\.savepoint\/?$/m.test(cur)) appendFileSync(p, `${cur.endsWith("\n") || !cur ? "" : "\n"}.savepoint/\n`);
+  if (!/^\/?\.fcrpg\/?$/m.test(cur)) appendFileSync(p, `${cur.endsWith("\n") || !cur ? "" : "\n"}.fcrpg/\n`);
   void repoRoot;
 }
 
 /**
  * Where instances live: outside your project folder (so your editor and tests never see them)
- * and outside any `.savepoint/` folder (which the Gatekeeper forbids agents to touch).
- * Override with SAVEPOINT_INSTANCES.
+ * and outside any `.fcrpg/` folder (which the Gatekeeper forbids agents to touch).
+ * Override with FCRPG_INSTANCES.
  */
 export function instancesHome(repoRoot: string): string {
-  const base = process.env.SAVEPOINT_INSTANCES
-    ?? join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "savepoint", "instances");
+  const base = process.env.FCRPG_INSTANCES
+    ?? join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "fcrpg", "instances");
   const tag = createHash("sha256").update(repoRoot).digest("hex").slice(0, 8);
   return join(base, `${basename(repoRoot)}-${tag}`);
 }
@@ -55,7 +55,7 @@ export async function createInstance(projectDir: string, battleId: string): Prom
   const gitDir = await must(root, "rev-parse", "--absolute-git-dir");
   excludeHarness(root, gitDir);
   const base = await must(root, "rev-parse", "HEAD");
-  const branch = `savepoint/${battleId}`;
+  const branch = `fcrpg/${battleId}`;
   const home = instancesHome(root);
   const path = join(home, battleId);
   mkdirSync(home, { recursive: true });
@@ -68,7 +68,7 @@ export async function savePoint(inst: InstanceInfo, label: string): Promise<stri
   const status = await must(inst.path, "status", "--porcelain");
   if (!status) return null;
   await must(inst.path, "add", "-A");
-  await must(inst.path, ...GIT_ID, "commit", "-q", "-m", `savepoint: ${label}`);
+  await must(inst.path, ...GIT_ID, "commit", "-q", "-m", `fcrpg: ${label}`);
   const sha = await must(inst.path, "rev-parse", "HEAD");
   inst.savePoints.push(sha);
   return sha;
@@ -80,7 +80,7 @@ export async function savePoint(inst: InstanceInfo, label: string): Promise<stri
  */
 export async function mergeInto(inst: InstanceInfo, part: InstanceInfo, label: string): Promise<boolean> {
   if (!part.savePoints.length) return true;
-  const m = await git(inst.path, ...GIT_ID, "merge", "--no-ff", "-q", "-m", `savepoint: ${label}`, part.branch);
+  const m = await git(inst.path, ...GIT_ID, "merge", "--no-ff", "-q", "-m", `fcrpg: ${label}`, part.branch);
   if (m.code !== 0) { await git(inst.path, "merge", "--abort"); return false; }
   inst.savePoints.push(await must(inst.path, "rev-parse", "HEAD"));
   return true;

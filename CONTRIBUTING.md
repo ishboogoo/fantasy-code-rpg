@@ -1,6 +1,6 @@
 # Joining the Guild
 
-Welcome, adventurer. SAVEPOINT is built in the open, and every kind of contributor is a party member we need: coders, game designers, pixel artists, chiptune composers, writers, and people who just try it and report what broke.
+Welcome, adventurer. Fantasy Code RPG is built in the open, and every kind of contributor is a party member we need: coders, game designers, pixel artists, chiptune composers, writers, and people who just try it and report what broke.
 
 ## Picking a quest
 
@@ -11,14 +11,15 @@ Welcome, adventurer. SAVEPOINT is built in the open, and every kind of contribut
 ## Setup
 
 ```bash
-git clone https://github.com/<you>/savepoint && cd savepoint
+git clone https://github.com/<you>/fantasy-code-rpg && cd fantasy-code-rpg
 npm install          # dev tools only (typescript); zero runtime deps
 npm test             # node:test, runs .ts directly
 npm run typecheck
 npm run demo
+node src/cli.ts play --demo   # the browser game
 ```
 
-Node ≥ 22.18 runs TypeScript directly. No build step. Keep TypeScript **erasable** (no enums, no parameter properties, no namespaces), so `node src/cli.ts` keeps working.
+Node ≥ 22.18 runs TypeScript directly, so during development there's no build step. Keep TypeScript **erasable** (no enums, no parameter properties, no namespaces), so `node src/cli.ts` keeps working. The published package is compiled to plain JavaScript (`npm run build` → `dist/`), because Node won't run TypeScript from inside `node_modules`.
 
 ## House rules for code
 

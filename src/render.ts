@@ -29,7 +29,7 @@ export function characterLine(c: Character): string {
 }
 
 export function partyScreen(world: World): string {
-  if (!world.party.length) return box("PARTY", ["Nobody here yet. Visit the Tavern: savepoint recruit <name> …"]);
+  if (!world.party.length) return box("PARTY", ["Nobody here yet. Visit the Tavern: fcrpg recruit <name> …"]);
   const lines: string[] = [];
   for (const c of world.party) {
     lines.push(characterLine(c));
@@ -49,7 +49,7 @@ export function enemyLine(e: Enemy): string {
 }
 
 export function enemiesScreen(world: World): string {
-  return box("BESTIARY", world.enemies.length ? world.enemies.map(enemyLine) : ["No enemies. Spawn one: savepoint spawn …"]);
+  return box("BESTIARY", world.enemies.length ? world.enemies.map(enemyLine) : ["No enemies. Spawn one: fcrpg spawn …"]);
 }
 
 export function reportScreen(world: World, r: BattleReport): string {

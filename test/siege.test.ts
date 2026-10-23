@@ -9,7 +9,7 @@ import { battle, keepBattle, siegeBrief } from "../src/battle.ts";
 import { parsePart } from "../src/stages.ts";
 import type { Character, Enemy } from "../src/types.ts";
 
-process.env.SAVEPOINT_INSTANCES = mkdtempSync(join(tmpdir(), "sp-si-"));
+process.env.FCRPG_INSTANCES = mkdtempSync(join(tmpdir(), "sp-si-"));
 
 function setup(cmdA: string, cmdB: string) {
   const dir = mkdtempSync(join(tmpdir(), "sp-siege-"));

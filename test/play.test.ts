@@ -22,7 +22,7 @@ test("the browser server needs its one-time key, and never sends hero settings",
     assert.equal((await fetch(`${base}api/state`)).status, 403);
     assert.equal((await fetch(base)).status, 403, "the page itself needs the key");
     assert.equal((await fetch(`${base}gen/hero.js`)).status, 200, "art generators are public");
-    const state = await (await fetch(`${base}api/state`, { headers: { "x-savepoint-token": token } })).json();
+    const state = await (await fetch(`${base}api/state`, { headers: { "x-fcrpg-token": token } })).json();
     assert.equal(state.party[0].company, "Claude");
     assert.doesNotMatch(JSON.stringify(state), /secret\.example/);
     // Events appended to the Chronicle stream to the page.
@@ -58,7 +58,7 @@ test("the browser can run the whole loop: request, approve, battle, keep", async
   const server = await startPlay(dir, 0);
   const token = new URL(server.url).searchParams.get("t")!;
   const base = server.url.split("?")[0];
-  const cmd = async (b: Record<string, unknown>) => (await fetch(`${base}api/cmd`, { method: "POST", headers: { "x-savepoint-token": token }, body: JSON.stringify(b) })).json();
+  const cmd = async (b: Record<string, unknown>) => (await fetch(`${base}api/cmd`, { method: "POST", headers: { "x-fcrpg-token": token }, body: JSON.stringify(b) })).json();
   try {
     const r = await cmd({ cmd: "request", text: "Login page crashes when the email field is empty" });
     assert.equal(r.ok, true, r.message);
@@ -70,7 +70,7 @@ test("the browser can run the whole loop: request, approve, battle, keep", async
     let state: { fighting: string | null; battles: Array<{ outcome: string }> } = { fighting: id, battles: [] };
     for (let i = 0; i < 50 && (state.fighting || !state.battles.length); i++) {
       await new Promise((res) => setTimeout(res, 100));
-      state = await (await fetch(`${base}api/state`, { headers: { "x-savepoint-token": token } })).json();
+      state = await (await fetch(`${base}api/state`, { headers: { "x-fcrpg-token": token } })).json();
     }
     assert.equal(state.battles.length, 1);
     const rec = await cmd({ cmd: "recruit", name: "Rook", job: "thief", adapter: "mock", race: "beastkin", build: "masculine" });

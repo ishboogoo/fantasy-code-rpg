@@ -24,10 +24,10 @@ test("commands unlock at T2, network and PRs at T3, merge at T4", () => {
 test("some things are forbidden even to heroes", () => {
   assert.equal(classify("Bash", { command: "git push --force origin feat" }, T(4)).allow, false);
   assert.equal(classify("Bash", { command: "rm -rf /" }, T(4)).allow, false);
-  assert.equal(classify("Edit", { file_path: ".savepoint/world.json" }, T(4)).allow, false, "no editing your own stats");
-  assert.equal(classify("Write", { file_path: "/repo/.savepoint/chronicle/lore.md" }, T(4)).allow, false, "no rewriting the Chronicle directly");
-  assert.equal(classify("Bash", { command: "sed -i s/a/b/ .savepoint/world.json" }, T(4)).allow, false, "no shell edits to the criteria");
-  assert.equal(classify("Read", { file_path: ".savepoint/chronicle/lore.md" }, T(0)).allow, true, "reading lore is encouraged");
+  assert.equal(classify("Edit", { file_path: ".fcrpg/world.json" }, T(4)).allow, false, "no editing your own stats");
+  assert.equal(classify("Write", { file_path: "/repo/.fcrpg/chronicle/lore.md" }, T(4)).allow, false, "no rewriting the Chronicle directly");
+  assert.equal(classify("Bash", { command: "sed -i s/a/b/ .fcrpg/world.json" }, T(4)).allow, false, "no shell edits to the criteria");
+  assert.equal(classify("Read", { file_path: ".fcrpg/chronicle/lore.md" }, T(0)).allow, true, "reading lore is encouraged");
 });
 
 test("summoning sub-agents is a T4 power; unknown tools are denied", () => {

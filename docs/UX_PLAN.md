@@ -15,7 +15,7 @@ Two rules settle every disagreement:
 
 | Question | Decision | Why |
 |---|---|---|
-| Where do you play? | **Browser first**, at `localhost`, via `savepoint play`. The terminal stays as the engine, the CLI and the Claude Code status bar. | Real pixel art, music and animation need a browser. It also shows diffs and approve buttons far better than a terminal. Nothing goes online. |
+| Where do you play? | **Browser first**, at `localhost`, via `fcrpg play`. The terminal stays as the engine, the CLI and the Claude Code status bar. | Real pixel art, music and animation need a browser. It also shows diffs and approve buttons far better than a terminal. Nothing goes online. |
 | Which 90s flavour? | **16-bit console RPG**, plus two PC-RPG pieces: **pause-and-command** and a **scrolling combat log**. | The most nostalgic era, and its stacked windows and party panels match orchestration. The log doubles as an audit trail. |
 | How do you play? | **Watch and step in.** Agents act on their own under a Tactics preset; you act at real decision points. **Wait mode** pauses battles while a decision is yours. | Choosing every turn would be slower than one AI app. Over time promotions mean you're asked less. That *is* the progression. |
 | Art | **Generated within an approved style**, so every character and enemy is unique and reflects real data. | Infinite variety, consistent look, no licensing risk. |
@@ -240,7 +240,7 @@ Agents (CLIs / APIs) ──hooks──▶ Engine (Node, existing) ──events�
 ```
 
 - The engine emits a stream of **game events** (`action`, `damage`, `miss`, `blocked`, `summon`, `verdict`, `levelUp`, `promotion`, `askHuman`…), served over a local WebSocket.
-- `savepoint play` binds to `127.0.0.1` only, with a one-time token in the URL.
+- `fcrpg play` binds to `127.0.0.1` only, with a one-time token in the URL.
 - **Web client:** TypeScript with a Canvas 2D renderer for sprites and maps, and real HTML for menus and text, which keeps them accessible and translatable. No heavy game engine is needed at 384 × 216.
 - **Art pipeline:** `assets/parts/*.json` (pixel grids) + `style.json` → sprite compositor → cached PNG sprite sheets.
 - The same event stream feeds the terminal UI and the Claude Code status bar.
@@ -265,7 +265,7 @@ Everything else (World Map, Atelier, Bestiary, Guild Hall, music, community pack
 
 ## 12. Mockups
 
-All key screens are mocked up on the SAVEPOINT design canvas: title, Guild Town, Quest Board, battle, Wait-mode decision, Victory + Loot Review, World Map, plus the character generator, enemy generator and Style Bible boards. Every sprite there is drawn live by two prototype generators (heroes and foes) that follow this plan's rules, including the automatic outline pass.
+All key screens are mocked up on the Fantasy Code RPG design canvas: title, Guild Town, Quest Board, battle, Wait-mode decision, Victory + Loot Review, World Map, plus the character generator, enemy generator and Style Bible boards. Every sprite there is drawn live by two prototype generators (heroes and foes) that follow this plan's rules, including the automatic outline pass.
 
 ## 13. Open questions
 
