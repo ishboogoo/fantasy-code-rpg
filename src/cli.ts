@@ -6,10 +6,10 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "./store.ts";
-import { battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
+import { MAX_SIEGE_PARTS, battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
 import { Council } from "./council.ts";
 import { QUEST_TYPES, classifyByRules, proofOf, questTypeOf } from "./quests.ts";
-import { adventurerOffer, answer, needsApproval, request, setPlayStyle, settings, warRoom } from "./stages.ts";
+import { adventurerOffer, answer, needsApproval, parsePart, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
 import { recommendParty, checkParty, type Role } from "./party.ts";
 import { newCharacter, recruit } from "./roster.ts";
@@ -21,7 +21,7 @@ import { allowOutput, decideTool, moveFor, denyOutput, keepGoingOutput, stopGate
 import { permissionsFor, recordFor, reliability, tierFor, title } from "./rules.ts";
 import { dirname } from "node:path";
 import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
-import type { AdapterKind, Character, Enemy, EnemyKind, JobLine, QuestType, World } from "./types.ts";
+import type { AdapterKind, Character, Enemy, EnemyKind, Formation, JobLine, QuestType, World } from "./types.ts";
 
 const HELP = `
 SAVEPOINT — a 90s-RPG harness for AI agent teams
@@ -34,6 +34,7 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
                      [--type build|fix|improve|explore|maintain|write]
                      [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
   savepoint spawn --file quest.json            Spawn enemies from a JSON file
+  savepoint split <quest> --part "name: c1,c2" --part "…"   Split a quest into parts for a Siege (--off to undo)
   savepoint enemies                            Show the bestiary
 
   The quest loop, in plain words:
@@ -46,7 +47,7 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
   savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
                      [--in-place]  run in your folder instead of a private copy (no undo)
-                     [--formation pincer]  the first two heroes each try their own approach; the better one wins
+                     [--formation pincer|siege]  pincer: two heroes each try their own approach; siege: the quest's parts are fought at once
   savepoint keep <battle-id> [--other]         Treasure Vault: bring a battle's changes into your project (--other: the Pincer's other approach)
   savepoint undo <battle-id> [--why "..."]      Treasure Vault: throw a battle's changes away (counts as a loss); your reason becomes a house rule
   savepoint seer <hero> | --off                Seat a hero as the Seer: a cheap, fast model the Council asks three times
@@ -79,6 +80,7 @@ const { values, positionals } = parseArgs({
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
     port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
+    part: { type: "string", multiple: true },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
@@ -210,6 +212,21 @@ async function main(): Promise<void> {
       console.log(nextStep(world, q));
       return;
     }
+    case "split": {
+      const q = world.enemies.find((e) => e.id === rest[0]);
+      const list = (values.part as string[] | undefined) ?? [];
+      if (!q) throw new Error('Usage: split <quest> --part "name: c1,c2" --part "name: c3"  (or --off to fight it as one)');
+      if (values.off) { delete q.parts; save(); console.log(`${q.name} is one quest again.`); return; }
+      if (list.length < 2) throw new Error("A Siege needs at least two parts.");
+      if (list.length > MAX_SIEGE_PARTS) throw new Error(`At most ${MAX_SIEGE_PARTS} parts can be fought at once.`);
+      q.parts = list.map((t, i) => parsePart(t, q, i));
+      const loose = q.criteria.filter((k) => !q.parts!.some((p) => p.criteria.includes(k.id))).map((k) => k.id);
+      save();
+      console.log(`🏰 ${q.name} splits into ${q.parts.length} parts:\n${q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`).join("\n")}`);
+      if (loose.length) console.log(`  Not in any part: ${loose.join(", ")}. They are judged on the combined result.`);
+      console.log(`Fight it: savepoint battle ${q.id} --formation siege`);
+      return;
+    }
     case "approve": {
       const q = world.enemies.find((e) => e.id === rest[0]);
       if (!q) throw new Error("Usage: approve <quest>");
@@ -240,12 +257,13 @@ async function main(): Promise<void> {
         const wr = await warRoom(world, store, foe, cwd);
         save();
         if (wr.scout || wr.planner) console.log(`🗺  War Room: ${[wr.scout && `${wr.scout} scouted`, wr.planner && `${wr.planner} planned`].filter(Boolean).join(", ")}.`);
-        if (wr.verdict !== "proceed") { console.log(warRoomWindow(foe, wr)); console.log(nextStep(world, foe)); return; }
+        if (wr.verdict === "split") console.log(warRoomWindow(foe, wr)); // a split is planned as a Siege and fought right away
+        else if (wr.verdict !== "proceed") { console.log(warRoomWindow(foe, wr)); console.log(nextStep(world, foe)); return; }
       }
       let partyIds = (values.party ?? "").split(",").filter(Boolean);
       let j = values.judge ?? "auto";
       if (foe && !partyIds.length) {
-        const plan = recommendParty(world, foe, 3, council);
+        const plan = recommendParty(world, foe, Math.max(3, Math.min(foe.parts?.length ?? 0, MAX_SIEGE_PARTS)), council);
         partyIds = plan.members.filter((m) => m.role !== "judge").map((m) => m.id);
         // Judging stays on "auto": up to three judges from other AI companies, chosen at the end.
         console.log(`Recommended party: ${plan.members.map((m) => `${m.name} (${m.role})`).join(", ")}`);
@@ -262,7 +280,10 @@ async function main(): Promise<void> {
         const suggested = lastLeadSuggestion(council.decisions(), foe.id);
         if (suggested && partyIds[0] && suggested !== partyIds[0]) recordChoice(world, questTypeOf(foe), partyIds[0], suggested);
       }
-      const formation = values.formation === "pincer" ? "pincer" : undefined;
+      // A quest split into parts is fought as a Siege unless you choose otherwise (--formation relay).
+      const formation: Formation | undefined = values.formation === "pincer" || values.formation === "siege" || values.formation === "relay" ? values.formation
+        : foe?.parts && foe.parts.length >= 2 ? "siege" : undefined;
+      if (formation === "siege" && !values.formation) console.log(`🏰 ${foe!.name} is split into ${foe!.parts!.length} parts, so it's fought as a Siege (--formation relay to fight it as one).`);
       const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, debrief: true, formation, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
       save();
       console.log(reportScreen(world, r));
@@ -352,7 +373,7 @@ function questWindow(q: Enemy, title: string): string {
 function warRoomWindow(q: Enemy, r: { verdict: string; scout?: string; planner?: string; questions: string[]; splits: string[] }): string {
   const lines = [`${q.id} · ${q.name}`];
   if (r.scout) lines.push(`Scout: ${r.scout} → ${r.verdict === "proceed" ? "clear to proceed" : r.verdict === "unclear" ? "unclear, needs your answer" : "really several quests"}`);
-  if (r.verdict === "split") lines.push("Suggested quests:", ...r.splits.map((x) => `  • ${x}`), 'Request each one: savepoint request "..."');
+  if (r.verdict === "split" && q.parts) lines.push("It splits into parts that can be fought at the same time (a Siege):", ...q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`), `Fight them all at once: savepoint battle ${q.id} --formation siege · change the parts: savepoint split ${q.id} --part "name: c1,c2"`);
   if (r.verdict === "unclear") lines.push(...(q.questions ?? []).map((x) => `  ? ${x}`));
   if (q.plan) lines.push(`Plan by ${r.planner}:`, ...q.plan.split("\n").slice(0, 12).map((x) => `  ${x}`));
   if (!r.scout && !r.planner) lines.push("Nobody is free for a desk job: recruit a hero first.");
@@ -436,7 +457,8 @@ async function stopGateCmd(): Promise<void> {
   // Only send back a hero who can write, or can at least ask to: pushing anyone else just wastes turns.
   if (!quest || !hero || hero.tier + 1 < tierFor("write")) { console.log("{}"); return; }
   const event = JSON.parse(raw || "{}") as { cwd?: string };
-  const r = await stopGate({ home, quest, characterId: id, cwd: event.cwd ?? process.cwd() });
+  const only = process.env.SAVEPOINT_CRITERIA ? process.env.SAVEPOINT_CRITERIA.split(",") : undefined;
+  const r = await stopGate({ home, quest, characterId: id, cwd: event.cwd ?? process.cwd(), only });
   console.log(r.keepGoing ? keepGoingOutput(cli, r.reason) : "{}");
 }
 

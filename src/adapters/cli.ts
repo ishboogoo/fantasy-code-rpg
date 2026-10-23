@@ -32,7 +32,7 @@ function hookSettings(home: string, name: string, settings: Record<string, unkno
 
 /** Tells the hooks who is acting, on which quest, and where the harness keeps its records. */
 function hookEnv(req: AdapterRequest): NodeJS.ProcessEnv {
-  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "", SAVEPOINT_DESK: req.desk ? "1" : "" };
+  return { ...process.env, SAVEPOINT_CHARACTER: req.character.id, SAVEPOINT_HOME: req.home ?? "", SAVEPOINT_QUEST: req.questId ?? "", SAVEPOINT_DESK: req.desk ? "1" : "", SAVEPOINT_CRITERIA: req.criteria?.join(",") ?? "" };
 }
 
 function billing(req: AdapterRequest): "subscription" | "api" {

@@ -11,7 +11,7 @@ import { QUEST_TYPES, classifyByRules, questTypeOf } from "./quests.ts";
 import { spend } from "./economy.ts";
 import type { Council } from "./council.ts";
 import type { Store } from "./store.ts";
-import type { Character, Criterion, Enemy, EnemyKind, PlayStyle, QuestType, Settings, World } from "./types.ts";
+import type { Character, Criterion, Enemy, EnemyKind, PlayStyle, QuestType, Settings, SiegePart, World } from "./types.ts";
 
 const KINDS: EnemyKind[] = ["slime", "goblin", "orc", "golem", "wyvern", "lich", "mimic", "dragon"];
 const READ_ONLY = permissionsFor(0);
@@ -223,6 +223,22 @@ export async function debrief(world: World, store: Store, quest: Enemy, outcome:
   return lessons;
 }
 
+// ---------- Siege parts ----------
+
+/**
+ * One part of a Siege from plain text: "Login page [c1, c2]" or "Login page: c1,c2".
+ * Condition ids that don't exist on the quest are ignored; with none, the part has no conditions of its own.
+ */
+export function parsePart(text: string, quest: Enemy, i: number): SiegePart {
+  const ids = new Set(quest.criteria.map((k) => k.id));
+  let name = text.trim(), list: string[] = [];
+  const bracket = name.match(/^(.*?)\s*\[([^\]]*)\]\s*$/);
+  const colon = name.match(/^(.*?):\s*([\w-]+(?:\s*,\s*[\w-]+)*)\s*$/);
+  const m = bracket ?? (colon && colon[2].split(",").every((x) => ids.has(x.trim())) ? colon : null);
+  if (m) { name = m[1].trim(); list = m[2].split(",").map((x) => x.trim()).filter((x) => ids.has(x)); }
+  return { id: `p${i + 1}`, name: name.slice(0, 80), criteria: [...new Set(list)] };
+}
+
 // ---------- Scout + Plan: the War Room ----------
 
 export interface WarRoomResult { verdict: "proceed" | "unclear" | "split"; scout?: string; planner?: string; questions: string[]; splits: string[] }
@@ -238,7 +254,8 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
       `Quest: ${quest.name}\n${quest.description}`, "Victory conditions:", conditions,
       "Report: which files matter, what is really going on (reproduce the problem if you can by reading code and tests), and what could go wrong.",
       "End with exactly one line: VERDICT: proceed | VERDICT: unclear | VERDICT: split",
-      "If unclear, add lines starting QUESTION: . If it is really several separate quests, add lines starting SPLIT: with each quest.",
+      "If unclear, add lines starting QUESTION: . If it splits into parts that different heroes could do at the same time without editing the same files,",
+      "add one line per part: SPLIT: <part name> [<condition ids it covers>]. Every condition should belong to exactly one part.",
     ].join("\n");
     const { text } = await ask(world, scout, prompt, cwd, store);
     result.scout = scout.name;
@@ -249,7 +266,11 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
     result.questions = [...text.matchAll(/^QUESTION:\s*(.+)$/gim)].map((m) => m[1].trim()).slice(0, 3);
     result.splits = [...text.matchAll(/^SPLIT:\s*(.+)$/gim)].map((m) => m[1].trim()).slice(0, 5);
     if (result.verdict === "unclear") { quest.questions = result.questions.length ? result.questions : ["The scout couldn't tell what's wanted. Can you say more?"]; return result; }
-    if (result.verdict === "split") return result;
+    if (result.verdict === "split") {
+      const parts = result.splits.map((t, i) => parsePart(t, quest, i)).filter((p) => p.name);
+      if (parts.length >= 2) quest.parts = parts; // a Siege: planned as one quest, fought in parts
+      else result.verdict = "proceed";
+    }
   }
   const planner = pickHelper(world, ["mage", "fighter"], new Set(scout ? [scout.id] : []));
   if (planner) {

@@ -75,9 +75,10 @@ export const MAX_PUSHES = 3;
  * hand back what failed, up to MAX_PUSHES times per hero per quest so a stuck hero can't loop forever
  * (after that the judge and the Treasure Vault take over).
  */
-export async function stopGate(opts: { home: string; quest: Enemy; characterId: string; cwd: string; alreadyPushed?: boolean }):
+export async function stopGate(opts: { home: string; quest: Enemy; characterId: string; cwd: string; alreadyPushed?: boolean; only?: string[] }):
   Promise<{ keepGoing: boolean; reason: string }> {
-  const checks = opts.quest.criteria.filter((k) => k.check && !k.met);
+  // In a Siege, a hero is only held to the checks of their own part.
+  const checks = opts.quest.criteria.filter((k) => k.check && !k.met && (!opts.only || opts.only.includes(k.id)));
   if (!checks.length) return { keepGoing: false, reason: "No command checks to run." };
   const dir = join(opts.home, "hooks");
   mkdirSync(dir, { recursive: true });

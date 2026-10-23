@@ -65,7 +65,10 @@ export const mock: Adapter = {
     }
     if (req.prompt.startsWith("[SCOUT]")) {
       const verdict = /\bunclear\b/i.test(req.prompt.split("Victory conditions:")[0]) ? "unclear" : /\band also\b/i.test(req.prompt) ? "split" : "proceed";
-      const extra = verdict === "unclear" ? "\nQUESTION: Which page do you mean?" : verdict === "split" ? "\nSPLIT: first part\nSPLIT: second part" : "";
+      const ids = [...req.prompt.matchAll(/^- \[([\w-]+)\]/gm)].map((m) => m[1]);
+      const half = Math.ceil(ids.length / 2);
+      const extra = verdict === "unclear" ? "\nQUESTION: Which page do you mean?"
+        : verdict === "split" ? `\nSPLIT: first part [${ids.slice(0, half).join(", ")}]\nSPLIT: second part [${ids.slice(half).join(", ")}]` : "";
       return { output: `Scouting report: the relevant code is in src/.${extra}\nVERDICT: ${verdict}`, costGold, costMp: 0, turns: 1 };
     }
     if (req.prompt.startsWith("[COMPARE]")) {

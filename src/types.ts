@@ -76,6 +76,8 @@ export interface Enemy {
   /** The War Room's read-only scouting report and plan, handed to the party. */
   scouting?: string;
   plan?: string;
+  /** Siege: the quest split into parts fought at the same time, each in its own copy. */
+  parts?: SiegePart[];
 }
 
 export type Outcome = "victory" | "retreat" | "defeat" | "critical";
@@ -107,7 +109,9 @@ export interface BattleReport {
   instance?: InstanceInfo;
   /** Pincer only: the other approach, kept when the judges couldn't agree so you can choose it instead. */
   alternate?: InstanceInfo;
-  formation?: "relay" | "pincer";
+  formation?: Formation;
+  /** Siege: parts whose changes clashed with earlier parts and were set aside. */
+  clashes?: string[];
   /** Treasure Vault state: changes wait for you to keep or undo them. */
   review?: "pending" | "kept" | "undone" | "nothing";
   /** Victory conditions this battle newly met, so an undo can reopen exactly those. */
@@ -161,4 +165,14 @@ export interface Permissions {
   merge: boolean;
   recruit: boolean;
   maxGoldPerBattle: number;
+}
+
+export type Formation = "relay" | "pincer" | "siege";
+
+/** One part of a Siege: a name, the victory conditions it covers, and optionally the hero who takes it. */
+export interface SiegePart {
+  id: string;
+  name: string;
+  criteria: string[];
+  hero?: string;
 }

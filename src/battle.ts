@@ -9,8 +9,8 @@ import {
   JOB_ROLE, gainXp, performance, permissionsFor, recordFor, settleTier, title, trialFor, xpAward,
 } from "./rules.ts";
 import type { Store } from "./store.ts";
-import type { BattleReport, Character, Enemy, InstanceInfo, Outcome, Verdict, World } from "./types.ts";
-import { canIsolate, createInstance, discard, keep, savePoint, changes } from "./instance.ts";
+import type { BattleReport, Character, Enemy, Formation, InstanceInfo, Outcome, SiegePart, Verdict, World } from "./types.ts";
+import { canIsolate, createInstance, discard, keep, savePoint, changes, mergeInto } from "./instance.ts";
 import { proofOf, questTypeOf } from "./quests.ts";
 import { debrief, lastJson } from "./stages.ts";
 import { vendor } from "./party.ts";
@@ -43,7 +43,7 @@ export interface BattleOptions {
   /** Ask a hero who didn't fight to write the quest's lessons into the Chronicle afterwards. */
   debrief?: boolean;
   /** Pincer: the first two heroes each try their own approach in their own copy; the better one goes to the Vault. */
-  formation?: "relay" | "pincer";
+  formation?: Formation;
 }
 
 export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
@@ -237,6 +237,18 @@ async function comparePincer(opts: BattleOptions, enemy: Enemy, leads: Character
   return { winner, sure, reason: sure ? `${leads[winner].name}'s approach wins. ${d.reasons[0] ?? ""}` : `The judges couldn't agree; ${leads[winner].name}'s approach goes first, and you choose at the Vault.` };
 }
 
+/** At most this many parts run at once in a Siege; the rest wait for a later battle. */
+export const MAX_SIEGE_PARTS = 4;
+
+/** What a Siege hero is told about their own part and everyone else's. */
+export function siegeBrief(enemy: Enemy, part: SiegePart, others: Array<{ part: SiegePart; hero: Character }>): string {
+  const cond = (ids: string[]) => ids.map((id) => enemy.criteria.find((k) => k.id === id)).filter(Boolean).map((k) => `  - [${k!.id}] ${k!.description}`);
+  return ["", "", `SIEGE. This quest is split into parts, fought at the same time, each hero in their own copy of the project.`,
+    `Your part: ${part.name}`, ...(part.criteria.length ? ["Conditions for your part:", ...cond(part.criteria)] : []),
+    `Other parts, being done right now by other heroes: ${others.map((o) => `${o.part.name} (${o.hero.name})`).join("; ") || "none"}.`,
+    "Change only what your part needs and don't do the other parts: your work is merged with theirs afterwards, and overlapping edits clash."].join("\n");
+}
+
 export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const { world, store, cwd } = opts;
   const battleId = randomUUID().slice(0, 8);
@@ -259,6 +271,9 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   // A private copy of the project, with save points after every turn.
   const isolate = opts.isolate ?? await canIsolate(cwd);
   if (opts.formation === "pincer" && (!isolate || party.length < 2)) throw new Error("Pincer needs two heroes and a git project with a commit (each approach runs in its own copy).");
+  if (opts.formation === "siege" && (!isolate || (enemy.parts?.length ?? 0) < 2)) throw new Error(isolate
+    ? `Siege needs the quest split into parts first: savepoint split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`
+    : "Siege needs a git project with a commit (each part runs in its own copy).");
   let inst: InstanceInfo | undefined;
   if (isolate) inst = await createInstance(cwd, battleId);
   const workdir = inst?.path ?? cwd;
@@ -316,9 +331,51 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     // The winner's lead goes first in the report, so the Council's choice of lead is judged fairly.
     if (pick.winner === 1) party.reverse();
   }
+  // Siege: each part is fought at the same time in its own copy, then the parts are merged into the main copy.
+  const clashes: string[] = [];
+  const siegeParts = new Map<string, SiegePart[]>(); // hero → the parts they took
+  if (opts.formation === "siege") {
+    if (!inst) throw new Error("Siege needs a git project: each part runs in its own copy.");
+    const parts = (enemy.parts ?? []).slice(0, MAX_SIEGE_PARTS);
+    if (parts.length < 2) throw new Error(`Siege needs the quest split into parts first: savepoint split ${enemy.id} --part "name: c1,c2" --part "name: c3" (the War Room suggests splits too).`);
+    const assign = parts.map((part, i) => ({ part, hero: party.find((c) => c.id === part.hero) ?? party[i % party.length] }));
+    say(`  🏰 Siege: ${assign.map((a) => `${a.hero.name} takes ${a.part.name}`).join(" · ")}`);
+    // Copies are made one at a time (git locks), then every part is fought at once.
+    const copies: InstanceInfo[] = [];
+    for (let i = 0; i < assign.length; i++) copies.push(await createInstance(cwd, `${battleId}-p${i + 1}`));
+    const goldEach = budgetGold / assign.length;
+    const results = await Promise.all(assign.map(async ({ part, hero }, i) => {
+      const where = copies[i];
+      const perms = permissionsFor(hero.tier);
+      emit({ type: "turn", hero: hero.id, part: part.id });
+      const before = store.violationCount(hero.id);
+      const r = await ADAPTERS[hero.adapter].run({ character: hero, prompt: buildPrompt(hero, enemy, store) + siegeBrief(enemy, part, assign.filter((a) => a.part !== part)),
+        cwd: where.path, permissions: perms, maxTurns, goldLimit: Math.min(goldEach, perms.maxGoldPerBattle), home: store.root, questId: enemy.id, criteria: part.criteria });
+      if (store.violationCount(hero.id) - before > 0 && !r.violation) r.violation = "was stopped by the Gatekeeper";
+      spend(world, hero, r.costGold, r.costMp);
+      costGold += r.costGold; costMp += r.costMp; turns += r.turns;
+      store.writeScroll(enemy.id, `${hero.name} (${title(hero)}, part: ${part.name})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
+      const sp = await savePoint(where, `${hero.name} (${part.name}) on ${enemy.id}`);
+      if (sp) emit({ type: "save_point", hero: hero.id, sha: sp.slice(0, 8) });
+      return { part, hero, where, r };
+    }));
+    for (const x of results) if (x.r.violation && !critical) { critical = `${x.hero.name} ${x.r.violation}`; say(`  ⚠️  ${critical}`); }
+    // Merge in the order the parts were listed; a part that clashes with earlier ones is set aside.
+    for (const x of results) {
+      if (await mergeInto(inst, x.where, `join ${x.part.name} into ${enemy.id}`)) {
+        if (x.where.savePoints.length) { say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) }); }
+      } else {
+        clashes.push(x.part.id);
+        say(`  💥 ${x.part.name} clashed with the parts before it and was set aside. Fight it again after you keep the rest.`);
+      }
+      await discard(cwd, x.where);
+      siegeParts.set(x.hero.id, [...(siegeParts.get(x.hero.id) ?? []), x.part]);
+    }
+    party.splice(0, party.length, ...party.filter((c) => siegeParts.has(c.id))); // heroes without a part sit this one out
+  }
   const fightDir = inst?.path ?? cwd;
 
-  for (const c of opts.formation === "pincer" ? [] : party) {
+  for (const c of opts.formation === "pincer" || opts.formation === "siege" ? [] : party) {
     const perms = permissionsFor(c.tier);
     const goldLimit = Math.min(budgetGold - costGold, perms.maxGoldPerBattle);
     const broke = canAfford(world, c, Math.min(goldLimit, 0.01), c.mp ? 1 : 0);
@@ -377,9 +434,19 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     const levels = gainXp(c, xp);
     xpAwarded[c.id] = xp;
     const rec = recordFor(c);
-    const t = trialFor(verdict.outcome, verdict.correctness);
+    let t = trialFor(verdict.outcome, verdict.correctness);
     // In a Pincer, the approach that wasn't chosen isn't a failure: its hero gets XP but no change in trust.
     if (c === pincerLoser) { if (levels) say(`  ✨ ${c.name} reached Lv ${c.level}!`); continue; }
+    // In a Siege, each hero answers for their own parts. A part set aside after a clash doesn't count either way.
+    const mine = siegeParts.get(c.id);
+    if (mine) {
+      if (mine.some((p) => clashes.includes(p.id))) { if (levels) say(`  ✨ ${c.name} reached Lv ${c.level}!`); continue; }
+      const ids = new Set(mine.flatMap((p) => p.criteria).filter((id) => !verdict.awaitingYou.includes(id)));
+      if (ids.size && verdict.outcome !== "critical") {
+        const own = [...ids].filter((id) => enemy.criteria.find((k) => k.id === id)?.met).length / ids.size;
+        t = trialFor(own >= 1 ? "victory" : own > 0 ? "retreat" : "defeat", own);
+      }
+    }
     // Every member is accountable for the whole outcome, so trust counts the full trial.
     rec.successes += t.s;
     rec.failures += t.f;
@@ -427,6 +494,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
 
   const report: BattleReport = {
     id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review, alternate, formation: opts.formation,
+    clashes: clashes.length ? clashes : undefined,
     newlyMet: enemy.criteria.filter((k) => k.met && !metBefore.has(k.id)).map((k) => k.id),
     awaitingYou: verdict.awaitingYou.length ? verdict.awaitingYou : undefined,
     party: party.map((c) => ({ characterId: c.id, share })),

@@ -216,6 +216,7 @@
       mid.innerHTML = '';
       if (qq.scouting) { mid.appendChild(el('div', 'label', t('scoutReport'))); var sr = el('div'); sr.style.whiteSpace = 'pre-wrap'; sr.textContent = qq.scouting; mid.appendChild(sr); }
       if (qq.plan) { mid.appendChild(el('div', 'label', t('plan'))); var pl = el('div'); pl.style.whiteSpace = 'pre-wrap'; pl.textContent = qq.plan; mid.appendChild(pl); }
+      if (qq.parts && qq.parts.length >= 2) { mid.appendChild(el('div', 'gold', t('split'))); qq.parts.forEach(function (p) { mid.appendChild(el('div', '', '• ' + p.name + (p.criteria.length ? '  [' + p.criteria.join(', ') + ']' : ''))); }); }
       if (!qq.scouting && !qq.plan) mid.appendChild(el('div', 'quiet', t('noPlan')));
       if (qq.questions.length) { mid.appendChild(el('div', 'gold', t('unclear'))); qq.questions.forEach(function (x) { mid.appendChild(el('div', '', '? ' + x)); }); }
     }
@@ -234,12 +235,14 @@
       right.appendChild(lab); right.appendChild(sl); slotEls[role] = sl;
     });
     // Formation: Relay by default; Pincer (two approaches, the better one wins) costs about twice as much.
-    var formation = 'relay';
+    var hasParts = q.parts && q.parts.length >= 2;
+    var formations = hasParts ? ['relay', 'pincer', 'siege'] : ['relay', 'pincer'];
+    var formation = hasParts ? 'siege' : 'relay';
     var lostBefore = s.battles.some(function (x) { return x.quest === q.id && (x.outcome !== 'victory' || x.review === 'undone'); });
     var fRow = el('div'); fRow.style.cssText = 'margin-top:6px';
     var fLabel = el('div', 'quiet', t('formation')); right.appendChild(fLabel);
     var fBtns = el('div'); fBtns.style.cssText = 'display:flex;gap:14px';
-    ['relay', 'pincer'].forEach(function (f) {
+    formations.forEach(function (f) {
       var bt = el('button', '', t(f)); bt.type = 'button';
       bt.style.cssText = 'font:inherit;font-size:16px;background:none;border:0;cursor:pointer;text-shadow:2px 2px 0 #020806';
       bt.addEventListener('click', function () { formation = f; paintF(); });
@@ -247,9 +250,19 @@
     });
     var fHelp = el('div', 'quiet'); fHelp.style.cssText = 'font-size:13px;line-height:18px';
     function paintF() {
-      [].forEach.call(fBtns.children, function (bt, i) { bt.style.color = ['relay', 'pincer'][i] === formation ? '#ffffff' : '#3a8a5a'; });
-      fHelp.textContent = formation === 'pincer' ? t('pincerHelp') : (lostBefore ? t('pincerHint') : t('relayHelp'));
+      [].forEach.call(fBtns.children, function (bt, i) { bt.style.color = formations[i] === formation ? '#ffffff' : '#3a8a5a'; });
+      fHelp.textContent = formation === 'pincer' ? t('pincerHelp') : formation === 'siege' ? t('siegeHelp') + '\n' + siegeLines() : (lostBefore ? t('pincerHint') : t('relayHelp'));
+      fHelp.style.whiteSpace = 'pre-wrap';
       supportLabel.textContent = formation === 'pincer' ? t('secondLead') : t('support');
+    }
+    // Siege: parts go to the chosen heroes in turn, unless the part already names its hero.
+    function siegeLines() {
+      var heroes = [picks.lead, picks.support].filter(Boolean);
+      return q.parts.map(function (p, i) {
+        var who = p.hero || heroes[i % Math.max(1, heroes.length)];
+        var c = who && G.hero(who);
+        return '• ' + p.name + (c ? ' — ' + c.name : '');
+      }).join('\n');
     }
     right.appendChild(fBtns); right.appendChild(fHelp);
     right.appendChild(el('div', 'quiet', t('judge'))); var jn = el('div', '', t('judgeAuto')); jn.style.fontSize = '13px'; jn.style.lineHeight = '18px'; right.appendChild(jn);
@@ -272,7 +285,7 @@
       ids = ids.filter(function (id) { return id === null || id !== other; });
       var i = ids.indexOf(picks[role]);
       picks[role] = ids[(i + 1) % ids.length];
-      drawSlot(role); check();
+      drawSlot(role); check(); paintF();
     }
     function check() {
       var list = [];
@@ -285,7 +298,7 @@
     }
     G.cmd('suggest', { id: q.id }).then(function (r) {
       r.members.forEach(function (m) { if (m.role === 'lead' && !picks.lead) picks.lead = m.id; else if (m.role === 'support' && !picks.support) picks.support = m.id; });
-      drawSlot('lead'); drawSlot('support');
+      drawSlot('lead'); drawSlot('support'); paintF();
       if (!r.councilSure) note.textContent = t('councilUnsure') + ' ' + t('clickToSwap');
       check();
     }).catch(function () { drawSlot('lead'); drawSlot('support'); });
@@ -296,7 +309,7 @@
       G.cmd('plan', { id: q.id }).then(function (r) {
         return G.refresh().then(function () {
           var qq = G.quest(q.id); showPlan(qq);
-          if (r.verdict === 'split') { mid.appendChild(el('div', 'gold', t('split'))); r.splits.forEach(function (x) { mid.appendChild(el('div', '', '• ' + x)); }); }
+          if (r.verdict === 'split' && qq.parts.length) { G.go('warroom', { id: q.id }); return; } // reopen with the Siege ready
           if (!qq.approved) G.toast(t('needsApproval'));
         });
       }).catch(function () { showPlan(q); });

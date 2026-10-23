@@ -18,6 +18,8 @@ export interface AdapterRequest {
   home?: string;
   /** The quest being fought, so the stop hook knows which checks to run. */
   questId?: string;
+  /** Siege: the conditions this hero's part covers; the stop gate only checks these. */
+  criteria?: string[];
   /** Read-only desk work (Clerk, Scout, Planner, judges): never asks to go beyond reading. */
   desk?: boolean;
 }

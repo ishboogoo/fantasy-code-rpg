@@ -44,9 +44,9 @@ Defined in `src/quests.ts`.
 ## 3. Parties
 
 - **Roles:** Lead (main work; must be trusted for what the quest needs), Support, Scout (read-only; how Novices earn trust), Judge (never the worker; preferably another company). Max 4.
-- **Formations:** Solo · Relay (default) · Pincer (✅ built: two approaches in two copies, checks then an order-swapped cross-company vote; ~2×) · Siege (split, parallel; 🔨). All must fit the quest's one budget.
+- **Formations:** Solo · Relay (default) · Pincer (✅ built: two approaches in two copies, checks then an order-swapped cross-company vote; ~2×) · Siege (✅ built: the quest split into up to four parts, each fought at once in its own copy, then joined; a part that clashes is set aside for the next battle). All must fit the quest's one budget.
 - **Tactics:** Careful · Balanced (default) · Bold · Frugal.
-- **Recommendation:** can they do it → have they won this kind before (the Ledger) → available → independent judge → cost. Your swaps teach it (🔨).
+- **Recommendation:** can they do it → have they won this kind before (the Ledger) → available → independent judge → cost. Your swaps teach it (✅).
 
 ## 4. RPG systems → real features
 
@@ -179,6 +179,6 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 8. ✅ **Launch scenes in the browser**: Title, Guild Town, Guild Counter, Quest Board, War Room, Battlefield, Treasure Vault, Tavern, Inn, Library and Settings, in English and Japanese. ✅ The Decision window: a hero reaching one rank above its own pauses and asks (allow once / deny / hand to another hero), from any scene or the command line.
 9. ✅ **Pincer formation**: two approaches in two copies at once; checks decide first, then an order-swapped cross-company vote; a split keeps both for you.
 10. ✅ **Real install check, Claude Code** (2.1.309): a novice asks to write → you allow → victory; you deny → retreat, not a loss; a Tier 1 hero writes without asking. Fixes from this run: heroes ask for one rank up only, desk jobs never ask, read-only commands count as reading, no free judge means you decide, lessons stay about the project. Codex and Gemini CLI still need the same check on real installs.
-11. **Siege**: split a big quest into sub-quests fought in parallel, each in its own copy, merged at the Vault.
+11. ✅ **Siege**: the Scout suggests parts (each covering some victory conditions) or you set them with `savepoint split`; each hero takes a part, all at once, each in their own copy; the parts are joined in order, and one that clashes is set aside. Each hero answers only for their own part, and the stop gate only holds them to their part's checks. A split quest is fought as a Siege by default. Verified with two real Claude Code heroes.
 12. **The Seer for risk and "stuck" decisions**: when to stop, retreat or call for help.
 13. **Public release**: trademark check for "Fantasy Code RPG", licence review, contributor guide, tagged release.

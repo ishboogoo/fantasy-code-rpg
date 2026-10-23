@@ -60,8 +60,8 @@ flowchart LR
 | `src/roster.ts` | Recruiting heroes (shared by the CLI and the browser). | no |
 | `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
-| `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |
-| `src/battle.ts` | Instance → turns with save points → judge → rewards → Treasure Vault → Debrief. | via the above |
+| `src/instance.ts` | A git worktree per battle (one per approach in a Pincer, one per part in a Siege), save point commits, joining Siege parts, Keep (merge) and Undo (discard). | git |
+| `src/battle.ts` | Instance → turns with save points (Relay, Pincer or Siege) → judge → rewards → Treasure Vault → Debrief. | via the above |
 | `src/render.ts` | Terminal windows and bars. | no |
 | `src/cli.ts` | Commands. | stdout |
 

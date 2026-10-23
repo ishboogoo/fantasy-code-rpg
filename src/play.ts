@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { Store } from "./store.ts";
 import { Council } from "./council.ts";
-import { battle, keepBattle, undoBattle } from "./battle.ts";
+import { MAX_SIEGE_PARTS, battle, keepBattle, undoBattle } from "./battle.ts";
 import { QUEST_TYPES, proofOf, questTypeOf } from "./quests.ts";
 import { JOB_ROLE, permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { answer, request, setPlayStyle, settings, warRoom } from "./stages.ts";
@@ -21,7 +21,7 @@ import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
 import { runProcess } from "./adapters/adapter.ts";
 import { refillMp } from "./economy.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
-import type { AdapterKind, JobLine, World } from "./types.ts";
+import type { AdapterKind, Formation, JobLine, World } from "./types.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(ROOT, "src", "web");
@@ -62,7 +62,7 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
       level: e.level, status: e.status, budget: e.budget.gold ?? QUEST_TYPES[questTypeOf(e)].gold,
       hp: e.criteria.filter((k) => !k.met).length, maxHp: e.criteria.length, approved: e.approved !== false,
       questions: e.questions ?? [], source: e.source, request: e.request ?? e.description,
-      scouting: e.scouting ?? null, plan: e.plan ?? null,
+      scouting: e.scouting ?? null, plan: e.plan ?? null, parts: e.parts ?? [],
       conditions: e.criteria.map((k) => ({ id: k.id, text: k.description, met: k.met, proof: proofOf(k), check: k.check ?? null })),
     })),
     battles: w.battles.slice(-30).map((b) => ({
@@ -179,11 +179,14 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         await queue; // let any pending change land first
         fighting = id;
         const w = store.load();
-        const partyIds = ids.length ? ids : recommendParty(w, quest(w), 3, council).members.filter((m) => m.role !== "judge").map((m) => m.id);
+        const q1 = quest(w);
+        const partyIds = ids.length ? ids : recommendParty(w, q1, Math.max(3, Math.min(q1.parts?.length ?? 0, MAX_SIEGE_PARTS)), council).members.filter((m) => m.role !== "judge").map((m) => m.id);
         const suggested = lastLeadSuggestion(council.decisions(), id);
         if (ids.length && suggested && suggested !== ids[0]) { recordChoice(w, questTypeOf(quest(w)), ids[0], suggested); store.save(w); }
         // The battle runs on; its progress arrives over the event stream.
-        const formation = b.formation === "pincer" ? "pincer" as const : undefined;
+        // A quest split into parts is fought as a Siege unless the player picked another formation.
+        const formation: Formation | undefined = b.formation === "pincer" || b.formation === "siege" || b.formation === "relay" ? b.formation
+          : (q1.parts?.length ?? 0) >= 2 ? "siege" : undefined;
         void battle({ world: w, store, enemyId: id, partyIds, judge: { kind: "auto" }, cwd: projectDir, council, debrief: true, formation })
           .then(() => store.save(w))
           .catch((e: unknown) => store.event({ type: "say", text: `✖ ${e instanceof Error ? e.message : String(e)}` }))

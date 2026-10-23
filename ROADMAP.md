@@ -17,11 +17,11 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | Verify Claude Code flags + add a `--help` contract test | 🟢 | Every `VERIFY` comment in `src/adapters/cli.ts` |
 | Verify Codex sandbox flags | 🟢 | |
 | Verify Gemini CLI approval-mode flags | 🟢 | |
-| ✅ Git **worktree per battle**, save point per turn, `keep` / `undo` | 🐗 | Done in v0.2. Next: one worktree per hero for Pincer and Siege |
+| ✅ Git **worktree per battle**, save point per turn, `keep` / `undo` | 🐗 | Done in v0.2, including one copy per hero for Pincer and Siege |
 | ✅ **Quest types** and proof per victory condition | 👺 | `src/quests.ts` |
 | ✅ **The Council**, seats 1–2 (Law, Ledger) with decision records and outcomes | 🐗 | `src/council.ts`, `src/ledger.ts` |
 | Council seat 3: **the Seer** adapter (Jev, Arch-Router, or a small model asked 3×) | 👺 | See docs/DESIGN_PLAN.md §8–9 |
-| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | Next: Siege (split into sub-quests, parallel) |
+| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | ✅ **Siege**: a quest split into parts fought at once and joined (`savepoint split`, `--formation siege`) |
 | ✅ **Clerk, Scout and Plan** (`request`, `answer`, `plan`, `approve`) and play styles | 🐗 | Next: import from GitHub Issues |
 | Enemy state machine: lurking → engaged → review → defeated / enraged (retrying) / escaped | 👺 | See ORCH in docs/CROSS_REFERENCE.md |
 | **Battlefield**: file globs a battle may touch; edits outside = violation | 👺 | Extend `gate.ts` |

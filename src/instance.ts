@@ -74,6 +74,18 @@ export async function savePoint(inst: InstanceInfo, label: string): Promise<stri
   return sha;
 }
 
+/**
+ * Siege: bring a part's work into the main copy. Returns false (and leaves the main copy as it was)
+ * when the part's changes clash with what is already there.
+ */
+export async function mergeInto(inst: InstanceInfo, part: InstanceInfo, label: string): Promise<boolean> {
+  if (!part.savePoints.length) return true;
+  const m = await git(inst.path, ...GIT_ID, "merge", "--no-ff", "-q", "-m", `savepoint: ${label}`, part.branch);
+  if (m.code !== 0) { await git(inst.path, "merge", "--abort"); return false; }
+  inst.savePoints.push(await must(inst.path, "rev-parse", "HEAD"));
+  return true;
+}
+
 /** Roll the instance back to an earlier save point (or the start). Later work is discarded. */
 export async function rollback(inst: InstanceInfo, to: string = inst.base): Promise<void> {
   await must(inst.path, "reset", "-q", "--hard", to);

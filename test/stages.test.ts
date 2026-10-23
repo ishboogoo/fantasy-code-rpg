@@ -52,10 +52,10 @@ test("AI-proposed checks only survive if the Gatekeeper would allow them", () =>
   assert.equal(safeCheck("git push origin main"), undefined);
 });
 
-test("the War Room stops when the Scout finds the quest unclear or really several", async () => {
+test("the War Room stops when the quest is unclear, and plans a split quest as a Siege", async () => {
   const { dir, store, w } = world();
   const unclear: Enemy = { id: "u1", name: "Fix the page", kind: "goblin", level: 1, description: "unclear which page", criteria: [{ id: "a", description: "x", met: false }], budget: {}, status: "lurking" };
-  const split: Enemy = { id: "s1", name: "Rework login and also add signup", kind: "goblin", level: 1, description: "rework login and also add signup", criteria: [{ id: "a", description: "x", met: false }], budget: {}, status: "lurking" };
+  const split: Enemy = { id: "s1", name: "Rework login and also add signup", kind: "goblin", level: 1, description: "rework login and also add signup", criteria: [{ id: "a", description: "x", met: false }, { id: "b", description: "y", met: false }], budget: {}, status: "lurking" };
   w.enemies.push(unclear, split);
   const r1 = await warRoom(w, store, unclear, dir);
   assert.equal(r1.verdict, "unclear");
@@ -63,7 +63,8 @@ test("the War Room stops when the Scout finds the quest unclear or really severa
   assert.equal(unclear.plan, undefined, "no plan until the question is answered");
   const r2 = await warRoom(w, store, split, dir);
   assert.equal(r2.verdict, "split");
-  assert.deepEqual(r2.splits, ["first part", "second part"]);
+  assert.deepEqual(split.parts, [{ id: "p1", name: "first part", criteria: ["a"] }, { id: "p2", name: "second part", criteria: ["b"] }]);
+  assert.ok(split.plan, "a split quest is still planned, as one Siege");
   const ok: Enemy = { id: "k1", name: "Typo in header", kind: "slime", level: 1, description: "fix the typo", criteria: [{ id: "a", description: "x", met: false }], budget: {}, status: "lurking" };
   w.enemies.push(ok);
   const r3 = await warRoom(w, store, ok, dir);
