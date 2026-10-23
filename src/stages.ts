@@ -9,6 +9,7 @@ import { classify } from "./gate.ts";
 import { permissionsFor } from "./rules.ts";
 import { QUEST_TYPES, classifyByRules, questTypeOf } from "./quests.ts";
 import { spend } from "./economy.ts";
+import { addSkills, cleanLine } from "./heroes.ts";
 import type { Council, SeatAnswer } from "./council.ts";
 import type { Store } from "./store.ts";
 import type { Character, Criterion, Enemy, EnemyKind, PlayStyle, QuestType, Settings, SiegePart, World } from "./types.ts";
@@ -305,6 +306,8 @@ export async function debrief(world: World, store: Store, quest: Enemy, outcome:
     "Write at most 3 lessons that would help the next party on this project: facts about its code and how to work in it, what worked, what to avoid.",
     "Not about the guild, ranks, permissions or tools. No absolute paths or temporary folder names: use paths relative to the project.",
     "One line each, under 160 characters, starting LESSON: . No lessons is fine if nothing new was learned.",
+    "Then at most 2 SKILLS: general working habits the heroes who fought showed or should adopt, true on ANY project",
+    "(no project names, file names, paths or code). One line each, starting SKILL: . Skills travel with the heroes to other guilds.",
   ].join("\n");
   let text = "";
   try { text = (await ask(world, scribe, prompt, cwd, store)).text; } catch { return []; }
@@ -313,6 +316,15 @@ export async function debrief(world: World, store: Store, quest: Enemy, outcome:
     .filter((l) => l && !known.includes(l) && !/\.fcrpg|harness|gatekeeper|permission|denied|write access/i.test(l)).slice(0, 3);
   for (const l of lessons) store.addLore(`${l} (lesson from ${quest.id}, written by ${scribe.name})`);
   if (lessons.length) store.event({ type: "lessons", quest: quest.id, by: scribe.id, lessons });
+  // Skills: general habits, kept on the heroes who fought. Anything project-specific is dropped.
+  const skills = [...text.matchAll(/^SKILL:\s*(.+)$/gim)].map((m) => cleanLine(m[1], 160))
+    .filter((k) => k && !/[\/\\`]|\.\w{2,4}\b|\.fcrpg|harness|gatekeeper|permission|guild master/i.test(k) && !k.toLowerCase().includes(quest.name.toLowerCase())).slice(0, 2);
+  if (skills.length) for (const id of fighters) {
+    const c = world.party.find((x) => x.id === id);
+    if (!c) continue;
+    const added = addSkills(c, skills);
+    if (added.length) store.event({ type: "skills", hero: c.id, skills: added });
+  }
   return lessons;
 }
 

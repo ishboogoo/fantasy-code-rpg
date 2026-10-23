@@ -37,6 +37,25 @@ export interface Character {
   recruitedAt: string;
   /** How the hero looks. Missing fields are chosen from the hero's id, so a look never changes by itself. */
   look?: { race?: string; build?: "feminine" | "masculine" };
+  /** General working habits learned in battle; they travel with the hero to other guilds. */
+  skills?: string[];
+  /** Kept work: the commits behind this hero's record, for the hero card. */
+  proof?: ProofEntry[];
+  /** A hero brought in from another guild: their career there, and the head start it gives them here. */
+  veteran?: { career: Career; prior: TrackRecord; importedAt: string };
+  /** File name of the hero's card art in .fcrpg/art/, if the player set one. */
+  art?: string;
+}
+
+export interface ProofEntry { quest: string; commit: string; repo?: string; at: string }
+
+/** A hero's whole career, as shown on the card and carried between guilds. */
+export interface Career {
+  battles: number; wins: number; losses: number;
+  /** Highest rank earned in any guild. */
+  bestTier: Tier;
+  byType: Partial<Record<QuestType, { won: number; lost: number }>>;
+  guilds: number;
 }
 
 export interface Criterion {

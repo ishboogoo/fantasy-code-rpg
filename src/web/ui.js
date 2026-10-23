@@ -67,6 +67,8 @@
     if (body) { opts.method = 'POST'; opts.body = JSON.stringify(body); }
     return fetch(path, opts).then(function (r) { return r.json(); });
   };
+  /** Fetch a file that needs the key (e.g. card art) as a Blob, or null. */
+  G.blob = function (path) { return fetch(path, { headers: { 'x-fcrpg-token': T } }).then(function (r) { return r.ok ? r.blob() : null; }, function () { return null; }); };
   G.cmd = function (cmd, extra) {
     var b = Object.assign({ cmd: cmd }, extra || {});
     return G.api('/api/cmd', b).then(function (r) { if (!r.ok) { G.toast(r.message, true); throw new Error(r.message); } return r; });

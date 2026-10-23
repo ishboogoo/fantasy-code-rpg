@@ -157,18 +157,24 @@ export function recordFor(c: Character, job: JobLine = c.job): TrackRecord {
   return c.records[job] ?? (c.records[job] = { successes: 0, failures: 0, battles: 0 });
 }
 
+/** The record promotion is judged on: battles here, plus a veteran's discounted head start from other guilds. */
+export function promotionRecord(c: Character): TrackRecord {
+  const here = recordFor(c), prior = c.veteran?.prior;
+  return prior ? { successes: here.successes + prior.successes, failures: here.failures + prior.failures, battles: here.battles + prior.battles } : here;
+}
+
 export function canPromote(c: Character): boolean {
   if (c.tier >= 4) return false;
   const next = (c.tier + 1) as Tier;
   const rule = TIER_RULES[next];
-  const rec = recordFor(c);
+  const rec = promotionRecord(c);
   return c.level >= rule.minLevel && reliability(rec) >= rule.minRel && rec.battles >= rule.minBattles;
 }
 
 export function shouldCurse(c: Character): boolean {
   if (c.tier === 0) return false;
   const rule = TIER_RULES[c.tier];
-  const rec = recordFor(c);
+  const rec = promotionRecord(c);
   // Give new tiers a grace period of 5 battles before judging them.
   return rec.battles >= rule.minBattles + 5 && reliability(rec) < rule.minRel - CURSE_MARGIN;
 }

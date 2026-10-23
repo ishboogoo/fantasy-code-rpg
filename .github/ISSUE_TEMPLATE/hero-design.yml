@@ -11,7 +11,7 @@ body:
     id: kind
     attributes:
       label: What are you proposing?
-      options: ["A look for an existing job (Fighter, Mage, Cleric, Thief, Bard)", "A new race", "A new job", "A named character concept", "Something else"]
+      options: ["A look for an existing job (Fighter, Mage, Cleric, Thief, Bard)", "A new race", "A new job", "A named character concept", "Card art: a background or rank frame", "Something else"]
     validations: { required: true }
   - type: input
     id: name

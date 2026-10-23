@@ -19,12 +19,15 @@ import { checkParty, recommendParty, vendor, type Role } from "./party.ts";
 import { recruit } from "./roster.ts";
 import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
 import { findProgram } from "./adapters/adapter.ts";
+import { ADAPTERS } from "./adapters/index.ts";
+import { career, describeHeroFile, exportHero, importHero, readHero, saveArt } from "./heroes.ts";
 import { refillMp } from "./economy.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
 import type { AdapterKind, Formation, JobLine, World } from "./types.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(ROOT, "src", "web");
+const CARDS = join(ROOT, "assets", "cards");
 const ASSETS: Record<string, string> = {
   "/gen/hero.js": join(ROOT, "assets", "generators", "hero.cjs"),
   "/gen/portrait.js": join(ROOT, "assets", "generators", "portrait.cjs"),
@@ -33,7 +36,7 @@ const ASSETS: Record<string, string> = {
   "/brand/cover.png": join(ROOT, "assets", "brand", "cover.png"),
 };
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".cjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8", ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
+  ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".json": "application/json", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 
 const COMPANY: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", google: "Gemini", mock: "Simulated", shell: "A command" };
 
@@ -54,6 +57,9 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
         adapter: c.adapter, company: COMPANY[vendor(c.adapter)] ?? c.adapter,
         mp: c.mp ? { current: c.mp.current, max: c.mp.max, refillHours: c.mp.refillHours, lastRefill: c.mp.lastRefill } : null,
         status: c.status, look: c.look ?? {},
+        skills: c.skills ?? [], art: c.art ?? null, career: career(w, c),
+        veteran: c.veteran ? { guilds: c.veteran.career.guilds, bestTier: c.veteran.career.bestTier } : null,
+        proof: (c.proof ?? []).slice(-3).reverse(), proofCount: (c.proof ?? []).length,
         may: Object.entries(p).filter(([, v]) => v === true).map(([k]) => k),
       };
     }),
@@ -90,7 +96,8 @@ function readFrom(file: string, offset: number): { text: string; size: number } 
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   let data = "";
-  for await (const chunk of req) { data += chunk; if (data.length > 50_000) break; }
+  // Room for a hero card or card art (base64 images up to 2 MB); anything bigger is refused.
+  for await (const chunk of req) { data += chunk; if (data.length > 3_000_000) throw new Error("That file is too large (2 MB at most)."); }
   try { return JSON.parse(data || "{}"); } catch { return {}; }
 }
 
@@ -198,6 +205,30 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
           { look: { race: String(b.race ?? "human"), build: b.build === "masculine" ? "masculine" : "feminine" } });
         return { message: `${c.name} joins the guild!`, id: c.id };
       });
+      case "heroExport": {
+        const w = store.load();
+        const c = w.party.find((x) => x.id === b.id);
+        if (!c) throw new Error("No such hero.");
+        return { hero: exportHero(w, c) };
+      }
+      case "heroPreview": {
+        const file = readHero(Buffer.from(String(b.data ?? ""), "base64"));
+        return { lines: describeHeroFile(file), name: file.hero.name, adapter: file.hero.adapter ?? null };
+      }
+      case "heroImport": return change(async (w) => {
+        const file = readHero(Buffer.from(String(b.data ?? ""), "base64"));
+        const adapter = String(b.adapter ?? "claude-code") as AdapterKind;
+        if (!ADAPTERS[adapter]) throw new Error("Unknown AI connection.");
+        const c = importHero(w, file, adapter);
+        return { message: `${c.name} joins the guild as a veteran on probation.`, id: c.id };
+      });
+      case "setArt": return change(async (w) => {
+        const c = w.party.find((x) => x.id === b.id);
+        if (!c) throw new Error("No such hero.");
+        if (b.off) { delete c.art; return { message: "The card shows the hero's sprite again." }; }
+        c.art = saveArt(store.root, c.id, Buffer.from(String(b.data ?? ""), "base64"));
+        return { message: "Card art set." };
+      });
       case "settings": return change(async (w) => {
         if (b.playStyle) setPlayStyle(w, String(b.playStyle));
         if (b.language === "en" || b.language === "ja") settings(w).language = b.language;
@@ -224,6 +255,12 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
       if (url.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; }
       // Art, styles and scripts carry no project data. The page and the API need the key.
       if (url.pathname in ASSETS) return send(200, TYPES[extname(ASSETS[url.pathname])] ?? "application/octet-stream", readFileSync(ASSETS[url.pathname]));
+      // Community card art that ships with the game (backgrounds and frames; see docs/ART_GUIDE.md).
+      if (url.pathname.startsWith("/cards/")) {
+        const file = normalize(join(CARDS, url.pathname.slice(7)));
+        if (!file.startsWith(CARDS) || !existsSync(file)) return send(404, "text/plain", "Not found");
+        return send(200, TYPES[extname(file)] ?? "application/octet-stream", readFileSync(file));
+      }
       if (url.pathname.startsWith("/web/")) {
         const file = normalize(join(WEB, url.pathname.slice(5)));
         if (!file.startsWith(WEB) || !existsSync(file)) return send(404, "text/plain", "Not found");
@@ -231,6 +268,12 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
       }
       if (!authed) return send(403, "text/plain", "Open the link printed by `fcrpg play` (it carries a one-time key).");
       if (url.pathname === "/") return send(200, TYPES[".html"], readFileSync(join(WEB, "index.html")));
+      // A player's own card art, from .fcrpg/art/ (needs the key, like everything about the guild).
+      if (url.pathname.startsWith("/api/art/")) {
+        const dir = join(store.root, "art"), file = normalize(join(dir, url.pathname.slice(9)));
+        if (!file.startsWith(dir) || !existsSync(file)) return send(404, "text/plain", "Not found");
+        return send(200, TYPES[extname(file)] ?? "application/octet-stream", readFileSync(file));
+      }
       if (url.pathname === "/api/state") return send(200, "application/json", JSON.stringify(snapshot(store, council, { fighting })));
       if (url.pathname === "/api/connections") return send(200, "application/json", JSON.stringify(await connections()));
       if (url.pathname === "/api/events") {

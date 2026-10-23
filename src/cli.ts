@@ -17,6 +17,7 @@ import { newCharacter, recruit } from "./roster.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { importGithub } from "./importers.ts";
+import { describeHeroFile, exportHero, importHero, readHero, saveArt } from "./heroes.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
 import { allowOutput, decideTool, moveFor, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
 import { permissionsFor, recordFor, reliability, tierFor, title } from "./rules.ts";
@@ -30,6 +31,9 @@ Fantasy Code RPG — a 90s-RPG harness for AI agent teams
   fcrpg init                               Create .fcrpg/ in this folder
   fcrpg recruit <name> --adapter <kind> --job <job> [--model m] [--mp 100 --refill 5]
                      [--billing api|subscription] [--cmd "..."] [--base-url u] [--skill 0.8]
+  fcrpg recruit --from <card.png|hero.json> [--adapter claude-code] [--yes]   Recruit a hero someone shared
+  fcrpg card <hero>                        Show a hero's card and save <hero>.hero.json to share
+  fcrpg art <hero> <image.png>             Set the artwork on a hero's card (--off to remove)
   fcrpg party                              Show the party
   fcrpg spawn <id> --name "…" --kind orc --level 4 --criteria "a: desc" --criteria "b: desc"
                      [--type build|fix|improve|explore|maintain|write]
@@ -82,7 +86,7 @@ const { values, positionals } = parseArgs({
     battles: { type: "string" }, help: { type: "boolean", short: "h" }, version: { type: "boolean", short: "v" },
     type: { type: "string" }, "in-place": { type: "boolean" },
     port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
-    part: { type: "string", multiple: true },
+    part: { type: "string", multiple: true }, from: { type: "string" }, yes: { type: "boolean" },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
@@ -135,6 +139,19 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case "recruit": {
+      // A hero someone shared: a .hero.json file or a hero card PNG.
+      if (values.from) {
+        const file = readHero(readFileSync(values.from));
+        const adapter = (values.adapter ?? "claude-code") as AdapterKind;
+        if (!ADAPTERS[adapter]) throw new Error(`Unknown adapter ${adapter}`);
+        console.log(box("A TRAVELLER AT THE TAVERN", describeHeroFile(file)));
+        if (!values.yes) { console.log(`They would run on your own ${adapter} connection. To recruit them: fcrpg recruit --from ${JSON.stringify(values.from)} --adapter ${adapter} --yes`); return; }
+        const c = importHero(world, file, adapter);
+        if (values.mp) c.mp = { max: Number(values.mp), current: Number(values.mp), refillHours: Number(values.refill ?? 5), lastRefill: new Date().toISOString() };
+        save();
+        console.log(`${c.name} joins the party as a veteran on probation (rank ${c.tier}).`);
+        return;
+      }
       const name = rest[0];
       const adapter = values.adapter as AdapterKind;
       const job = (values.job ?? "fighter") as JobLine;
@@ -151,6 +168,32 @@ async function main(): Promise<void> {
       });
       save();
       console.log(box("TAVERN", [`${name} joins the party!`, characterLine(c), `Enforcement: ${ADAPTERS[adapter].enforcement}`]));
+      return;
+    }
+    case "card": {
+      const c = world.party.find((x) => x.id === rest[0] || x.name.toLowerCase() === String(rest[0] ?? "").toLowerCase());
+      if (!c) throw new Error("Usage: card <hero>  (writes <hero>.hero.json; the picture card is in the Tavern in fcrpg play)");
+      const data = exportHero(world, c);
+      const out = values.file ?? `${c.id}.hero.json`;
+      writeFileSync(out, JSON.stringify(data, null, 2) + "\n");
+      const k = data.career;
+      console.log(box(`HERO CARD · ${c.name}`, [
+        `${data.hero.title} · Lv ${c.level} · rank ${c.tier}${c.veteran ? " (veteran on probation)" : ""}`,
+        `${k.wins} won · ${k.losses} lost · ${k.guilds} guild(s) · best rank ${k.bestTier}`,
+        ...Object.entries(k.byType).map(([t, v]) => `  ${QUEST_TYPES[t as QuestType]?.label ?? t}: ${v!.won} won, ${v!.lost} lost`),
+        ...(data.skills.length ? ["Skills:", ...data.skills.map((x) => `  • ${x}`)] : []),
+        `${data.proof.length} piece(s) of kept work${data.proof[0]?.repo ? `, e.g. ${data.proof.at(-1)!.repo}/commit/${data.proof.at(-1)!.commit.slice(0, 7)}` : ""}`,
+        `Saved ${out}. Anyone can recruit this hero with: fcrpg recruit --from ${out}`,
+      ]));
+      return;
+    }
+    case "art": {
+      const c = world.party.find((x) => x.id === rest[0] || x.name.toLowerCase() === String(rest[0] ?? "").toLowerCase());
+      if (!c || !rest[1]) throw new Error("Usage: art <hero> <image.png|jpg>  (or --off to remove)");
+      if (rest[1] === "--off" || values.off) { delete c.art; save(); console.log(`${c.name}'s card shows their sprite again.`); return; }
+      c.art = saveArt(store.root, c.id, readFileSync(rest[1]));
+      save();
+      console.log(`${c.name}'s card now shows your art. Open the Tavern in fcrpg play to see it.`);
       return;
     }
     case "party": console.log(partyScreen(world)); return;

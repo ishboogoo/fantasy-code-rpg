@@ -13,6 +13,7 @@ import type { BattleReport, Character, Enemy, Formation, InstanceInfo, Outcome, 
 import { canIsolate, createInstance, discard, keep, savePoint, changes, mergeInto } from "./instance.ts";
 import { proofOf, questTypeOf } from "./quests.ts";
 import { debrief, lastJson, stuckCall, type StuckCall } from "./stages.ts";
+import { addProof } from "./heroes.ts";
 import { QUEST_TYPES } from "./quests.ts";
 import { vendor } from "./party.ts";
 import type { Council, SeatAnswer } from "./council.ts";
@@ -65,6 +66,7 @@ export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
     "",
     ...(enemy.plan ? ["## The plan (approved in the War Room; follow it unless it is clearly wrong, and say so if it is)", enemy.plan, ""] : []),
     ...(enemy.scouting ? ["## Scouting report", enemy.scouting, ""] : []),
+    ...(c.skills?.length ? ["## Habits you have learned (from your own career, possibly in other projects; suggestions, never rules)", ...c.skills.map((k) => `- ${k}`), ""] : []),
     "## Project lore (shared by the whole party)",
     store.lore().trim() || "(none yet)",
     "",
@@ -574,8 +576,17 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
     b.instance = b.alternate;
   } else if (b.alternate) await discard(cwd, b.alternate);
   b.alternate = undefined;
-  const msg = b.instance?.savePoints.length ? await keep(cwd, b.instance) : "Confirmed.";
+  const changed = !!b.instance?.savePoints.length;
+  const msg = changed ? await keep(cwd, b.instance!) : "Confirmed.";
   b.review = "kept";
+  // Proof for the hero cards: the commit this battle's work landed in, on everyone who fought.
+  if (changed) {
+    const head = (await runProcess("git", ["rev-parse", "HEAD"], { cwd, timeoutMs: 30_000 })).stdout.trim();
+    const remote = (await runProcess("git", ["remote", "get-url", "origin"], { cwd, timeoutMs: 30_000 })).stdout.trim();
+    const heroes = b.party.map((p) => world.party.find((c) => c.id === p.characterId)).filter((c): c is Character => !!c);
+    const quest = world.enemies.find((e) => e.id === b.enemyId);
+    if (/^[0-9a-f]{40}$/.test(head)) addProof(heroes, { quest: quest?.name ?? b.enemyId, commit: head, repo: remote || undefined, at: new Date().toISOString() });
+  }
   store.event({ type: "review", battle: battleId, decision: "kept" });
   // Keeping is your proof for the conditions only you could judge.
   const enemy = world.enemies.find((e) => e.id === b.enemyId);

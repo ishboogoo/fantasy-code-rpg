@@ -123,6 +123,10 @@ Wanted most: CLI adapter testers, a pixel-art web UI, an MCP server for the Chro
 
 MIT
 
+## Hero cards
+
+Every hero has a card: level, rank, trust, wins by kind of quest, the skills they learned and links to the real commits behind them, around a big artwork window. Share it as a picture, and anyone can recruit that hero into their own project from the same picture, as a veteran who must still earn full trust there. Set your own art for your hero, or contribute backgrounds and frames for everyone ([art guide](docs/ART_GUIDE.md#card-art)).
+
 ## Design a hero or a monster
 
 Every task in the game is a monster, and the best ones come from folklore whose legend matches a real coding problem: a Hydra is a bug that keeps coming back. Heroes, races, outfits and monsters are all open for design. Read the [art guide](docs/ART_GUIDE.md), then open a **🧝 Hero design** or **👾 Enemy design** issue. Sketches and words are enough.

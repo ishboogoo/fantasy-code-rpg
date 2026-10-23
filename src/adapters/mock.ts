@@ -86,7 +86,7 @@ export const mock: Adapter = {
       return { output: word, costGold, costMp: 0, turns: 1 };
     }
     if (req.prompt.startsWith("[DEBRIEF]")) {
-      return { output: "LESSON: Run the whole test suite before claiming a fix; the login tests live in test/login.test.ts.", costGold, costMp: 0, turns: 1 };
+      return { output: "LESSON: Run the whole test suite before claiming a fix; the login tests live in test/login.test.ts.\nSKILL: Run the whole test suite before claiming a task is done.", costGold, costMp: 0, turns: 1 };
     }
     if (req.prompt.startsWith("[PLAN]")) {
       return { output: "1. Read the code.\n2. Make the change.\n3. Prove each condition.", costGold, costMp: 0, turns: 1 };
