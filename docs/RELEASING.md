@@ -9,13 +9,10 @@ The package is `fantasy-code-rpg` on npm; it installs the `fcrpg` command.
    - US: [USPTO Trademark Search](https://tmsearch.uspto.gov/)
    - EU: [EUIPO eSearch](https://euipo.europa.eu/eSearch/)
    - Anything live and close in those classes → talk to a trademark lawyer before launch, and pick another name if needed. Avoid naming or imitating other games' trademarks in marketing (titles, logos, signature monsters or items).
-2. **Fill in the placeholders.**
-   - `package.json`: replace `OWNER` in `repository`, `homepage` and `bugs` with your GitHub user or organisation.
-   - `CODE_OF_CONDUCT.md`: add a contact email for conduct reports.
-   - `LICENSE`: the copyright line says "The Fantasy Code RPG contributors". Put your name there instead if you prefer.
+2. ✅ **Placeholders filled in:** GitHub owner `ishboogoo` in `package.json`, conduct contact in `CODE_OF_CONDUCT.md`, copyright holder Alex Ishiguro in `LICENSE`.
 3. **GitHub repository.** Create an empty public repository named `fantasy-code-rpg`, then push:
    ```bash
-   git remote add origin https://github.com/OWNER/fantasy-code-rpg.git
+   git remote add origin https://github.com/ishboogoo/fantasy-code-rpg.git
    git push -u origin main
    ```
    In **Settings**:
@@ -31,7 +28,7 @@ The package is `fantasy-code-rpg` on npm; it installs the `fcrpg` command.
 npm only lets you set up automatic publishing for a package that already exists, so the first version goes out from your computer:
 
 ```bash
-git clone https://github.com/OWNER/fantasy-code-rpg.git && cd fantasy-code-rpg
+git clone https://github.com/ishboogoo/fantasy-code-rpg.git && cd fantasy-code-rpg
 npm install
 npm test
 npm pack --dry-run          # check the file list: dist/, src/web/, assets/, README, LICENSE, CHANGELOG
@@ -51,7 +48,7 @@ npx fantasy-code-rpg@latest play --demo
 ## Turn on automatic publishing (once, right after the first publish)
 
 On npmjs.com → your package → **Settings** → **Trusted Publisher** → GitHub Actions:
-- Organization or user: `OWNER`
+- Organization or user: `ishboogoo`
 - Repository: `fantasy-code-rpg`
 - Workflow filename: `release.yml`
 

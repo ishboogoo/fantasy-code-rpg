@@ -6,7 +6,7 @@ Fantasy Code RPG is a guild, and guilds only work when everyone can trust the pa
 
 **We don't accept:** harassment, insults, discrimination of any kind, sexualised content, doxxing, or deliberately derailing discussions.
 
-**If something goes wrong:** contact the maintainers privately (see the repository profile for a contact address). Reports are handled confidentially. Maintainers may warn, temporarily ban, or permanently remove anyone who breaks these rules, in any project space.
+**If something goes wrong:** email the maintainer privately at a.m.ishiguro@gmail.com. Reports are handled confidentially. Maintainers may warn, temporarily ban, or permanently remove anyone who breaks these rules, in any project space.
 
 This code applies in issues, PRs, discussions, chat channels and events that represent the project.
 

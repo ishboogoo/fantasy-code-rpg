@@ -48,10 +48,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/fantasy-code-rpg.git"
+    "url": "git+https://github.com/ishboogoo/fantasy-code-rpg.git"
   },
-  "homepage": "https://github.com/OWNER/fantasy-code-rpg#readme",
+  "homepage": "https://github.com/ishboogoo/fantasy-code-rpg#readme",
   "bugs": {
-    "url": "https://github.com/OWNER/fantasy-code-rpg/issues"
+    "url": "https://github.com/ishboogoo/fantasy-code-rpg/issues"
   }
 }
