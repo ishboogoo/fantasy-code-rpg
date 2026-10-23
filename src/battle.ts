@@ -388,7 +388,10 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     // Merge in the order the parts were listed; a part that clashes with earlier ones is set aside.
     for (const x of results) {
       if (await mergeInto(inst, x.where, `join ${x.part.name} into ${enemy.id}`)) {
-        if (x.where.savePoints.length) { joined.add(x.part.id); say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) }); }
+        if (x.where.savePoints.length) {
+          joined.add(x.part.id); say(`  🧱 ${x.part.name} joins the main copy.`); emit({ type: "save_point", hero: x.hero.id, sha: inst.savePoints.at(-1)!.slice(0, 8) });
+          if (withChecks.length) await progress(inst.path, x.hero.id, "main", inst.base);
+        }
       } else {
         clashes.push(x.part.id);
         say(`  💥 ${x.part.name} clashed with the parts before it and was set aside. Fight it again after you keep the rest.`);

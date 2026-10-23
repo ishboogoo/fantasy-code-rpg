@@ -118,6 +118,7 @@
         think(e.hero, true, true); var ah = G.hero(e.hero); if (live) flash('🛡 ' + t('asks', { who: ah ? ah.name : e.hero }));
       } else if (e.type === 'answer') {
         think(e.hero, true, false);
+        if (e.decision === 'deny' || e.expired) hurtHero(e.hero, live); // a refused or unanswered ask is a blocked try
       } else if (e.type === 'turn_end') {
         think(e.hero, false);
       } else if (e.type === 'save_point') {
@@ -131,6 +132,8 @@
         if (d < 0) { if (live) { pop('-' + (-d) + ' HP'); anim(foeEl, 'hurt', 600); } say(t('dmg', { name: b.q.name, n: -d }), 'gold'); }
         else if (d > 0) { if (live) { pop('+' + d + ' HP', 'heal'); anim(foeEl, 'healing', 900); flash(t('heals', { name: b.q.name })); } say(t('healsWhy', { name: b.q.name, n: d }), 'label'); }
       } else if (e.type === 'rally') {
+        // The helper the Council called joins the field and the party panel.
+        if (e.hero && b.party.indexOf(e.hero) < 0) { b.party.push(e.hero); drawHeroes(); drawParty(); }
         if (live) { anim(foeEl, 'rally', 1200); flash(t('rally', { name: b.q.name })); }
         say(t('rally', { name: b.q.name }), 'label');
       } else if (e.type === 'verdict') {

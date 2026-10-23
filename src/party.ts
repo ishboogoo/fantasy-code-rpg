@@ -123,8 +123,10 @@ export function checkParty(world: World, e: Enemy, picks: Array<{ id: string; ro
   else if (lc && vendor(jc.adapter) === vendor(lc.adapter)) w.push(`${jc.name} and ${lc.name} come from the same AI company. A judge from a different one catches more mistakes.`);
   // Judges are picked at the end from heroes who didn't fight, from other AI companies when there are any.
   const fighters = new Set(picks.filter((p) => p.role !== "judge").map((p) => get(p.id)?.id));
-  const bench = world.party.filter((c) => !fighters.has(c.id) && available(c));
-  if (!jc && lc && bench.length && bench.every((c) => vendor(c.adapter) === vendor(lc.adapter)))
+  // The same heroes chooseJudges could pick: not fighting, not resting, not a shell command.
+  const bench = world.party.filter((c) => !fighters.has(c.id) && !c.status.includes("resting") && c.adapter !== "shell");
+  const real = ["anthropic", "openai", "google"].includes(vendor(lc?.adapter ?? "mock"));
+  if (!jc && lc && real && bench.length && bench.every((c) => vendor(c.adapter) === vendor(lc.adapter)))
     w.push("Every hero who could judge comes from the same AI company as the party, so the judging won't be fully independent. A Codex or Gemini hero would fix that.");
   if (lc && WEAKNESS[e.kind].length && WEAKNESS[e.kind].length < 5 && !picks.some((p) => { const c = get(p.id); return c && WEAKNESS[e.kind].includes(c.job); }))
     w.push(`No one here is strong against this monster. Try a ${WEAKNESS[e.kind].join(" or ")}.`);
