@@ -214,7 +214,7 @@
 
     function showPlan(qq) {
       mid.innerHTML = '';
-      if (qq.risk && qq.risk.risky) { var rk = el('div', 'warn', '⚠ ' + t('risky') + ' ' + qq.risk.reasons.join('; ')); rk.style.whiteSpace = 'pre-wrap'; mid.appendChild(rk); mid.appendChild(el('div', 'quiet', t('riskyHelp'))); }
+      if (qq.risk && qq.risk.risky) { var rk = el('div', 'warn', '⚠ ' + t('risky') + ' ' + (qq.risk.reasons || []).map(window.tEngine).join('; ')); rk.style.whiteSpace = 'pre-wrap'; mid.appendChild(rk); mid.appendChild(el('div', 'quiet', t('riskyHelp'))); }
       if (qq.scouting) { mid.appendChild(el('div', 'label', t('scoutReport'))); var sr = el('div'); sr.style.whiteSpace = 'pre-wrap'; sr.textContent = qq.scouting; mid.appendChild(sr); }
       if (qq.plan) { mid.appendChild(el('div', 'label', t('plan'))); var pl = el('div'); pl.style.whiteSpace = 'pre-wrap'; pl.textContent = qq.plan; mid.appendChild(pl); }
       if (qq.parts && qq.parts.length >= 2) { mid.appendChild(el('div', 'gold', t('split'))); qq.parts.forEach(function (p) { mid.appendChild(el('div', '', '• ' + p.name + (p.criteria.length ? '  [' + p.criteria.join(', ') + ']' : ''))); }); }
@@ -294,7 +294,7 @@
       if (picks.lead) list.push({ id: picks.lead, role: 'lead' });
       if (picks.support) list.push({ id: picks.support, role: 'support' });
       G.cmd('check', { id: q.id, picks: list }).then(function (r) {
-        warn.textContent = r.warnings.filter(function (w) { return !/No judge/.test(w); }).map(function (w) { return '⚠ ' + w; }).join('\n');
+        warn.textContent = r.warnings.filter(function (w) { return !/No judge/.test(w); }).map(function (w) { return '⚠ ' + window.tEngine(w); }).join('\n');
         warn.style.whiteSpace = 'pre-wrap';
       }).catch(function () {});
     }

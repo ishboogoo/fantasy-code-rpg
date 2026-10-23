@@ -141,3 +141,48 @@ window.I18N = {
 
   },
 };
+
+// Engine messages (party warnings, risk reasons). English is the default; Japanese
+// is applied in the browser so the server can keep sending English strings.
+// Keys match the engine's exact wording (src/stages.ts, src/party.ts).
+window.ENGINE_JA = {
+  'It changes the database': 'データベースを変更します',
+  'It deletes things': '何かを削除します',
+  'It touches money': 'お金に触れます',
+  'It touches security': 'セキュリティに触れます',
+  'It touches secrets': '秘密情報に触れます',
+  'It reaches production': '本番環境に影響します',
+  'It rewrites history': '履歴を書き換えます',
+  'It has beaten a party before': '以前にパーティを倒したことがあります',
+  'Nothing costly or hard to undo is mentioned': '高くつく・元に戻しにくい内容は書かれていません',
+  'No judge: the result will be checked only by tests you wrote, or by you.': '審判がいません。結果はあなたが書いたテスト、またはあなた自身の確認だけになります。',
+};
+
+window.tEngine = function (text) {
+  if (!text) return text;
+  var lang = (window.G && G.lang) ? G.lang() : 'en';
+  if (lang !== 'ja') return text;
+  var out = String(text);
+  Object.keys(window.ENGINE_JA).forEach(function (key) {
+    out = out.split(key).join(window.ENGINE_JA[key]);
+  });
+  out = out.replace(/No one here is strong against this monster\. Try a (.+)\./, function (m, jobs) {
+    var table = (window.I18N && window.I18N.ja && window.I18N.ja.jobs) || {};
+    var jaJobs = jobs.split(' or ').map(function (job) {
+      return table[job.trim()] || job.trim();
+    }).join('か');
+    return 'このモンスターに強い者がいません。' + jaJobs + 'を試してください。';
+  });
+  out = out.replace(/(\S+) isn't trusted to (run commands|change files) yet, so they'll stop and ask you each time\./,
+    function (m, name, what) {
+      var ja = what === 'run commands' ? 'コマンドを実行する' : 'ファイルを変更する';
+      return name + 'はまだ' + ja + '権限がないので、そのたびに止まって確認します。';
+    });
+  out = out.replace(/(\S+) isn't trusted to (run commands|change files) yet, so they can only look and suggest\. Pick a higher rank to lead\./,
+    function (m, name, what) {
+      var ja = what === 'run commands' ? 'コマンドを実行する' : 'ファイルを変更する';
+      return name + 'はまだ' + ja + '権限がないので、見て提案するだけです。より高い階級をリーダーに選んでください。';
+    });
+  // Unmatched text stays in English on purpose.
+  return out;
+};
