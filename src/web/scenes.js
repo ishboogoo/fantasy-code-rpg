@@ -21,7 +21,7 @@
     G.sceneEl.appendChild(img);
     var w = G.win(828, 462, 300);
     var hasGame = G.state.party.length > 0;
-    var won = G.state.battles.filter(function (b) { return b.outcome === 'victory'; }).length;
+    var won = G.state.quests.filter(function (q) { return q.status === 'defeated'; }).length;
     G.menu(w, [
       { label: t('continue'), disabled: !hasGame, action: function () { G.go('town'); } },
       { label: t('newGame'), action: function () { G.go('tavern', { welcome: true }); } },
@@ -51,8 +51,20 @@
 
     var loc = G.win(12, 12, 250); loc.innerHTML = '<div class="h1"></div><div class="quiet"></div>';
     loc.children[0].textContent = t('town');
-    loc.children[1].textContent = s.battles.filter(function (b) { return b.outcome === 'victory'; }).length + ' ' + t('chapterOf');
+    loc.children[1].textContent = s.quests.filter(function (q) { return q.status === 'defeated'; }).length + ' ' + t('chapterOf');
     var gold = G.win(1012, 12, 128); gold.innerHTML = '<span class="gold"></span> ' + t('gold'); gold.firstChild.textContent = s.treasury.gold;
+    if (s.party.length) {
+      // The party at a glance; click (or press S anywhere) for everyone's stats.
+      var pbox = G.win(12, 100, 250, null); pbox.style.cursor = 'pointer'; pbox.title = t('partyTitle') + ' (S)';
+      pbox.appendChild(el('div', 'label', t('partyTitle') + ' (S)'));
+      var strip = el('div'); strip.style.cssText = 'display:flex;gap:10px;margin-top:4px'; pbox.appendChild(strip);
+      s.party.slice(0, 5).forEach(function (c) {
+        var r = el('div'); r.style.cssText = 'display:flex;flex-direction:column;align-items:center;font-size:12px;line-height:14px';
+        var pc = G.portraitCanvas(c); pc.style.cssText += ';width:36px;height:36px;border-radius:6px'; r.appendChild(pc);
+        r.appendChild(el('div', 'quiet', t('level') + ' ' + c.level)); r.title = c.name; strip.appendChild(r);
+      });
+      pbox.addEventListener('click', function () { G.go('party', { from: 'town' }); });
+    }
     var info = G.win(300, 12, 680); info.innerHTML = '<div class="h1 gold"></div><div></div><div class="quiet" style="font-size:13px"></div>';
 
     var status = {
@@ -466,6 +478,56 @@
   }
 
   // ---- Hero card: the stats screen, with shareable artwork ----
+  // ---------------- Party status (S, from anywhere) ----------------
+  S.party = function (params) {
+    var back = function () { G.go(params.from && params.from !== 'party' ? params.from : 'town', params.fromParams || {}); };
+    var head = G.win(12, 12, 1128, null); head.innerHTML = '<div class="h1"></div><div class="quiet"></div>';
+    head.children[0].textContent = t('partyTitle'); head.children[1].textContent = t('partyHelp');
+    var list = G.win(12, 96, 1128, 488, 'scroll'); list.style.display = 'flex'; list.style.flexDirection = 'column'; list.style.gap = '8px';
+    var heroes = G.state.party;
+    if (!heroes.length) list.appendChild(el('div', 'quiet', t('noHeroes')));
+    var may = { read: 'mayRead', write: 'mayWrite', exec: 'mayExec', network: 'mayNetwork', openPr: 'mayPr', merge: 'mayMerge', recruit: 'mayRecruit' };
+    var rows = heroes.map(function (c) {
+      var row = el('div', 'slot'); row.style.cssText += ';display:grid;grid-template-columns:72px 230px 230px 1fr;gap:14px;align-items:center';
+      row.appendChild(G.portraitCanvas(c));
+      var a = el('div'); a.appendChild(el('div', 'h1', c.name)); a.appendChild(el('div', 'quiet', G.title(c.title) + ' · ' + t('level') + ' ' + c.level));
+      a.appendChild(el('div', 'quiet', t('poweredBy') + ' ' + c.company + ((c.status || []).length ? ' · ' + c.status.join(', ') : ''))); row.appendChild(a);
+      var b = el('div');
+      b.appendChild(el('div', 'quiet', t('exp') + ' ' + c.xp + '/' + c.xpNext));
+      var xb = el('div', 'bar'); var xf = el('b'); xf.style.cssText = 'width:' + Math.min(100, 100 * c.xp / Math.max(1, c.xpNext)) + '%;background:#e0b040'; xb.appendChild(xf); b.appendChild(xb);
+      b.appendChild(el('div', 'label', t('trust') + ' ' + G.stars(c.trust) + ' ' + Math.round(c.trust * 100) + '%'));
+      b.appendChild(el('div', 'quiet', t('battlesN', { n: c.battles }) + (c.mp ? ' · ' + t('mp') + ' ' + c.mp.current + '/' + c.mp.max : '')));
+      row.appendChild(b);
+      var d = el('div');
+      d.appendChild(el('div', '', t('mayNow') + ' ' + (c.may || []).map(function (k) { return t(may[k] || k); }).join(', ')));
+      if (c.next) {
+        var n = c.next, h = n.have;
+        var need = [];
+        need.push((h.level >= n.level ? '✓ ' : '') + t('level') + ' ' + n.level + ' (' + h.level + ')');
+        need.push((h.trust >= n.trust ? '✓ ' : '') + t('trust') + ' ' + Math.round(n.trust * 100) + '% (' + Math.round(h.trust * 100) + '%)');
+        need.push((h.battles >= n.battles ? '✓ ' : '') + t('battlesN', { n: n.battles }) + ' (' + h.battles + ')');
+        d.appendChild(el('div', 'gold', t('nextRank', { title: G.title(n.title) })));
+        d.appendChild(el('div', 'quiet', need.join(' · ')));
+      } else d.appendChild(el('div', 'gold', t('topRank')));
+      row.appendChild(d);
+      row.tabIndex = 0;
+      row.addEventListener('click', function () { G.go('card', { id: c.id }); });
+      list.appendChild(row); return row;
+    });
+    var cur = 0;
+    function sel(i) { if (!rows.length) return; cur = (i + rows.length) % rows.length; rows.forEach(function (r, j) { r.classList.toggle('sel', j === cur); }); rows[cur].scrollIntoView({ block: 'nearest' }); }
+    sel(0);
+    var foot = G.win(12, 596, 1128, null);
+    G.menu(foot, [{ label: t('back'), action: back }], { row: true, small: true });
+    G.onKey(function (e) {
+      if (e.key === 'ArrowDown') { sel(cur + 1); return true; }
+      if (e.key === 'ArrowUp') { sel(cur - 1); return true; }
+      if ((e.key === 'Enter' || e.key === 'z' || e.key === 'Z') && rows.length) { G.go('card', { id: heroes[cur].id }); return true; }
+      if (e.key === 'Escape' || e.key === 'x' || e.key === 'X' || e.key === 's' || e.key === 'S') { back(); return true; }
+      return false;
+    });
+  };
+
   S.card = function (params) {
     var c = G.state.party.filter(function (x) { return x.id === params.id; })[0];
     if (!c) { G.go('tavern'); return; }

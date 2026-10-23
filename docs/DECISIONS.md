@@ -4,6 +4,7 @@ Every decision that shapes Fantasy Code RPG, newest first. When a decision chang
 
 | Date | Decision | Why | Replaces |
 |---|---|---|---|
+| 2026-10-23 | **Guild Town counts quests done** (status defeated, including quests closed as done), and **S opens the party screen** from anywhere. | A kept-and-closed quest showed "0 quests won", and stats were two screens away. Heroes' own records still count battles only. | Battles won |
 | 2026-10-23 | **Quests can be closed without a battle** (done, or dropped). No XP, no trust change either way. | A retreat whose work you kept left its quest open forever, and its old checks could never pass. | — |
 | 2026-10-23 | **Battles show progress as it happens:** checks run after every save point, so the enemy's HP falls live and it heals when a passing condition breaks; it rallies when the Council extends the fight. Heroes get HP (tries left: Gatekeeper blocks and errors cost one) and MP (turns left), and every move is animated. | The first real playthrough looked frozen: heroes stood still and HP only moved at the end. Progress you can see is the point of the game. | HP only at the verdict |
 | 2026-10-23 | **Checks get `FCRPG_BASE`** (the battle's starting commit), and the Clerk must compare against it instead of `git status`. | Save points commit the work, so "what changed" checks based on `git status` could never pass. | — |
