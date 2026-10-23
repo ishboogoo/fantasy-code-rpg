@@ -2,6 +2,11 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.3]
+
+### Changed
+- **Guild Town arrows follow the map.** Left and Right move along a row of buildings; Up and Down jump to the nearest building in the other row. Tab and Shift+Tab still step through every building in order.
+
 ## [0.2.2]
 
 ### Added

@@ -37,6 +37,7 @@ Published as `fantasy-code-rpg` on npm (command: `fcrpg`). How releases work: [d
 
 | Quest | Size | Notes |
 |---|---|---|
+| **Walk around Guild Town** (headline of 0.3): your party leader is a sprite you walk through town Chrono Trigger-style, the party follows, doors open as you walk in; arrows, WASD, mouse-click to walk there. The building cursor stays as the accessible shortcut | 🐲 | Asked for by the maintainer after the first real playthrough |
 | **Chronicle MCP server** (`lore_get`, `lore_add`, `scroll_read`, `scroll_append`, `party_status`) | 🐗 | Lets every MCP-capable CLI share context mid-battle |
 | ✅ Codex and Gemini gatekeepers via their hook systems | 🐗 | `src/hooks.ts`. Verify on real installs (see VERIFY notes) |
 | Runtime adapters: wrap Claw Orchestrator or ORCH | 🐗 | Inherit their engines and cost ledgers |
