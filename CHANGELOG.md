@@ -2,6 +2,11 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [Unreleased]
+
+### Fixed
+- Leaving the party screen (S) returns to the exact screen you came from, such as the same hero card or the same quest's War Room.
+
 ## [0.2.9]
 
 ### Added
