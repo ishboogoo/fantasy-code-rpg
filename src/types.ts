@@ -4,6 +4,8 @@
 export type Tier = 0 | 1 | 2 | 3 | 4;
 export type JobLine = "fighter" | "mage" | "cleric" | "thief" | "bard";
 export type EnemyKind = "slime" | "goblin" | "orc" | "golem" | "wyvern" | "lich" | "mimic" | "dragon";
+/** The six kinds of work. Sets default party, formation, budget and what counts as proof. See src/quests.ts. */
+export type QuestType = "build" | "fix" | "improve" | "explore" | "maintain" | "write";
 export type AdapterKind =
   | "claude-code" | "codex" | "gemini-cli"
   | "anthropic-api" | "openai-compatible"
@@ -40,6 +42,8 @@ export interface Criterion {
   description: string;
   /** Optional shell command whose exit code 0 proves the criterion. */
   check?: string;
+  /** How this condition is proven: a runnable check, an independent judge, or you. Defaults: check → "command", else "judge". */
+  proof?: "command" | "judge" | "human";
   met: boolean;
 }
 
@@ -47,6 +51,8 @@ export interface Enemy {
   id: string;
   name: string;
   kind: EnemyKind;
+  /** Which kind of work this is. Classified by the Council when missing. */
+  questType?: QuestType;
   level: number;
   description: string;
   criteria: Criterion[];      // HP bars
@@ -70,9 +76,26 @@ export interface Verdict {
   judgedBy: string;     // "tests", "human", or a character id
 }
 
+/** A private copy of the project for one battle: a git worktree on its own branch. */
+export interface InstanceInfo {
+  branch: string;
+  path: string;
+  /** The commit the battle started from (the first save point). */
+  base: string;
+  /** Commits made after each hero's turn, oldest first. */
+  savePoints: string[];
+}
+
 export interface BattleReport {
   id: string;
   enemyId: string;
+  questType?: QuestType;
+  /** Present when the battle ran in its own copy of the project. */
+  instance?: InstanceInfo;
+  /** Treasure Vault state: changes wait for you to keep or undo them. */
+  review?: "pending" | "kept" | "undone" | "nothing";
+  /** Victory conditions this battle newly met, so an undo can reopen exactly those. */
+  newlyMet?: string[];
   party: Array<{ characterId: string; share: number }>;
   costGold: number;
   costMp: number;

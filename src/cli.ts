@@ -6,7 +6,9 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "./store.ts";
-import { battle, type JudgeSpec } from "./battle.ts";
+import { battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
+import { Council } from "./council.ts";
+import { QUEST_TYPES, classifyByRules, questTypeOf } from "./quests.ts";
 import { recommendParty, checkParty, type Role } from "./party.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
@@ -14,7 +16,7 @@ import { classify } from "./gate.ts";
 import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { dirname } from "node:path";
 import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
-import type { AdapterKind, Character, Enemy, EnemyKind, JobLine, World } from "./types.ts";
+import type { AdapterKind, Character, Enemy, EnemyKind, JobLine, QuestType, World } from "./types.ts";
 
 const HELP = `
 SAVEPOINT — a 90s-RPG harness for AI agent teams
@@ -24,11 +26,16 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
                      [--billing api|subscription] [--cmd "..."] [--base-url u] [--skill 0.8]
   savepoint party                              Show the party
   savepoint spawn <id> --name "…" --kind orc --level 4 --criteria "a: desc" --criteria "b: desc"
+                     [--type build|fix|improve|explore|maintain|write]
                      [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
   savepoint spawn --file quest.json            Spawn enemies from a JSON file
   savepoint enemies                            Show the bestiary
   savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
   savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
+                     [--in-place]  run in your folder instead of a private copy (no undo)
+  savepoint keep <battle-id>                   Treasure Vault: bring a battle's changes into your project
+  savepoint undo <battle-id>                   Treasure Vault: throw a battle's changes away (counts as a loss)
+  savepoint council                            How each Council seat has decided, and how often it was right
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
@@ -51,11 +58,13 @@ const { values, positionals } = parseArgs({
     guard: { type: "string" }, gold: { type: "string" }, turns: { type: "string" },
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
+    type: { type: "string" }, "in-place": { type: "boolean" },
   },
 });
 
 const cwd = process.cwd();
 const store = new Store(cwd);
+const council = new Council(store.chronicleDir);
 const [cmd, ...rest] = positionals;
 
 function newCharacter(name: string, adapter: AdapterKind, job: JobLine, extra: Partial<Character> = {}): Character {
@@ -121,11 +130,22 @@ async function main(): Promise<void> {
           id: rest[0] ?? `e${world.enemies.length + 1}`, name: values.name ?? rest[0] ?? "Unnamed foe",
           kind: (values.kind ?? "goblin") as EnemyKind, level: Number(values.level ?? 1),
           description: values.name ?? "", criteria: parseCriteria(values.criteria, values.check),
-          budget: { gold: Number(values.gold ?? 1), maxTurns: Number(values.turns ?? 20) },
+          budget: { gold: values.gold ? Number(values.gold) : undefined, maxTurns: Number(values.turns ?? 20) },
           guard: values.guard, status: "lurking",
+          questType: values.type as QuestType | undefined,
         }];
       for (const e of spawned) {
         e.status ??= "lurking";
+        if (e.questType && !QUEST_TYPES[e.questType]) throw new Error(`Unknown quest type ${e.questType}. Use one of: ${Object.keys(QUEST_TYPES).join(", ")}.`);
+        if (!e.questType) {
+          const text = [e.name, e.description, ...e.criteria.map((k) => k.description)].join(" ");
+          const d = council.decide<QuestType>("quest-type", `What kind of quest is ${e.name}?`, {
+            law: () => { const c = classifyByRules(text); return c ? { answer: c.type, confidence: 0.9, reasons: [`Mentions "${c.matched[0]}"`] } : null; },
+          }, e.id);
+          if (d.answer) e.questType = d.answer;
+          else console.log(`? The Council couldn't tell what kind of quest ${e.name} is, so it's treated as ${QUEST_TYPES[questTypeOf(e)].label} for now. Set it with --type.`);
+        }
+        e.budget.gold ??= QUEST_TYPES[questTypeOf(e)].gold;
         e.criteria = e.criteria.map((k) => ({ ...k, met: k.met ?? false }));
         if (!e.criteria.length) throw new Error(`${e.id} needs at least one --criteria (that's its HP).`);
         world.enemies.push(e);
@@ -141,11 +161,12 @@ async function main(): Promise<void> {
       let partyIds = (values.party ?? "").split(",").filter(Boolean);
       let j = values.judge ?? "auto";
       if (foe && !partyIds.length) {
-        const plan = recommendParty(world, foe);
+        const plan = recommendParty(world, foe, 3, council);
         partyIds = plan.members.filter((m) => m.role !== "judge").map((m) => m.id);
         const pj = plan.members.find((m) => m.role === "judge");
         if (!values.judge && pj) j = pj.id;
         console.log(`Recommended party: ${plan.members.map((m) => `${m.name} (${m.role})`).join(", ")}`);
+        if (plan.leadDecision?.seat === "you") console.log(`? The Council isn't sure who should lead yet, so it's going with its best guess. Choose yourself with --party.`);
       } else if (foe) {
         const picks: Array<{ id: string; role: Role }> = partyIds.map((id, i) => ({ id, role: i === 0 ? "lead" : "support" }));
         if (j !== "auto" && j !== "tests") picks.push({ id: j, role: "judge" });
@@ -153,7 +174,7 @@ async function main(): Promise<void> {
       }
       if (!partyIds.length) throw new Error("Nobody in your guild can take this quest yet. Recruit or rest first.");
       const judge: JudgeSpec = j === "tests" ? { kind: "tests" } : j === "auto" ? { kind: "auto" } : { kind: "character", id: j };
-      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, onEvent: (l) => console.log(l) });
+      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
       save();
       console.log(reportScreen(world, r));
       return;
@@ -161,11 +182,31 @@ async function main(): Promise<void> {
     case "suggest": {
       const foe = world.enemies.find((e) => e.id === rest[0]);
       if (!foe) throw new Error("Usage: suggest <enemy-id>");
-      const plan = recommendParty(world, foe);
-      console.log(`Recommended party for ${foe.name}:`);
+      const plan = recommendParty(world, foe, 3, council);
+      console.log(`Recommended party for ${foe.name} (${QUEST_TYPES[questTypeOf(foe)].label} quest · proof: ${QUEST_TYPES[questTypeOf(foe)].proof}):`);
       for (const m of plan.members) console.log(`  ${m.role.toUpperCase().padEnd(8)} ${m.name}${m.reasons.length ? " · " + m.reasons.join("; ") : ""}`);
       for (const wmsg of plan.warnings) console.log(`  ⚠ ${wmsg}`);
       console.log(`Swap anyone: savepoint battle ${foe.id} --party <lead>,<support> --judge <name>`);
+      return;
+    }
+    case "keep": {
+      if (!rest[0]) throw new Error("Usage: keep <battle-id>");
+      console.log(`📦 ${await keepBattle(world, store, rest[0], cwd)}`);
+      save();
+      return;
+    }
+    case "undo": {
+      if (!rest[0]) throw new Error("Usage: undo <battle-id>");
+      console.log(`🗑 ${await undoBattle(world, store, rest[0], cwd, council)}`);
+      save();
+      return;
+    }
+    case "council": {
+      const rows = council.accuracy();
+      if (!rows.length) { console.log("The Council hasn't decided anything yet."); return; }
+      const lines = rows.map((r) => `${r.kind.padEnd(11)} ${r.seat.padEnd(7)} decided ${String(r.decided).padStart(3)} · ` +
+        (r.judged ? `right ${r.right}/${r.judged} (${Math.round((100 * r.right) / r.judged)}%)` : "no results yet"));
+      console.log(box("THE COUNCIL", ["kind        seat    record", ...lines]));
       return;
     }
     case "lore": store.addLore(rest.join(" ")); console.log("📜 Written into the Chronicle."); return;

@@ -1,15 +1,24 @@
 // Party recommendation: for each quest, suggest who should fight, who should back them up,
 // and who should judge, then let the player swap anyone and explain the trade-offs in plain words.
 import type { AdapterKind, Character, Enemy, JobLine, Permissions, World } from "./types.ts";
-import { WEAKNESS, permissionsFor, recordFor, reliability, title } from "./rules.ts";
+import { JOB_TITLES, WEAKNESS, permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { ADAPTERS } from "./adapters/index.ts";
+import { QUEST_TYPES, questTypeOf } from "./quests.ts";
+import { probabilityBest, type Council, type Decision, type SeatAnswer } from "./council.ts";
+import { ledgerRecords } from "./ledger.ts";
 
 export type Role = "lead" | "support" | "judge";
 export interface Pick { id: string; name: string; role: Role; score: number; reasons: string[] }
-export interface PartyPlan { members: Pick[]; warnings: string[]; estimate: { goldCap: number; usesMp: boolean } }
+export interface PartyPlan {
+  members: Pick[];
+  warnings: string[];
+  estimate: { goldCap: number; usesMp: boolean };
+  /** How the lead was chosen, when a Council was consulted. */
+  leadDecision?: Decision<string>;
+}
 
 const API: AdapterKind[] = ["anthropic-api", "openai-compatible"];
-const need = (e: Enemy): keyof Permissions => e.needs ?? "write";
+const need = (e: Enemy): keyof Permissions => e.needs ?? QUEST_TYPES[questTypeOf(e)].needs;
 const vendor = (a: AdapterKind): string =>
   a === "claude-code" || a === "anthropic-api" ? "anthropic" : a === "codex" || a === "openai-compatible" ? "openai" : a === "gemini-cli" ? "google" : a;
 
@@ -26,7 +35,7 @@ export function fit(c: Character, e: Enemy, role: Role, world?: World): { score:
   const rel = reliability(recordFor(c));
   score += rel * 4;
   if (rel >= 0.7) reasons.push(`Reliable: wins most quests (${Math.round(rel * 100)}% trust)`);
-  if (WEAKNESS[e.kind].includes(c.job) && WEAKNESS[e.kind].length < 5) { score += 2; reasons.push(`${title(c)}s are strong against this kind of monster`); }
+  if (WEAKNESS[e.kind].includes(c.job) && WEAKNESS[e.kind].length < 5) { score += 2; reasons.push(`${JOB_TITLES[c.job][0]}s are strong against this kind of monster`); }
   const perms = permissionsFor(c.tier);
   if (role === "lead") {
     if (perms[need(e)]) { score += 3; } else { score -= 10; reasons.push(`Not yet trusted to ${need(e) === "exec" ? "run commands" : "change files"}`); }
@@ -47,10 +56,22 @@ export function fit(c: Character, e: Enemy, role: Role, world?: World): { score:
 }
 
 /** Recommend a party: one lead who can do the job, supports who cover weaknesses, and a judge from a different AI company. */
-export function recommendParty(world: World, e: Enemy, size = 3): PartyPlan {
+export function recommendParty(world: World, e: Enemy, size = 3, council?: Council): PartyPlan {
   const pool = world.party.filter(available);
   const taken = new Set<string>();
   const members: Pick[] = [];
+  let leadDecision: Decision<string> | undefined;
+  if (council) {
+    leadDecision = chooseLead(world, e, pool, council);
+    const id = leadDecision.answer ?? leadDecision.suggestion;
+    const c = id ? pool.find((x) => x.id === id) : undefined;
+    if (c) {
+      taken.add(c.id);
+      const f = fit(c, e, "lead", world);
+      const why = leadDecision.seat === "you" ? "Suggested; the Council isn't sure yet, so please confirm" : `Chosen by the ${leadDecision.seat === "law" ? "Law" : "Ledger"}`;
+      members.push({ id: c.id, name: c.name, role: "lead", score: f.score, reasons: [why, ...leadDecision.reasons.slice(0, 1), ...f.reasons] });
+    }
+  }
   const take = (role: Role, filter: (c: Character) => boolean = () => true) => {
     const ranked = pool.filter((c) => !taken.has(c.id) && filter(c))
       .map((c) => ({ c, ...fit(c, e, role, world) })).sort((a, b) => b.score - a.score);
@@ -61,14 +82,14 @@ export function recommendParty(world: World, e: Enemy, size = 3): PartyPlan {
     members.push(p);
     return best.c;
   };
-  const lead = take("lead");
+  const lead = members.length ? pool.find((c) => c.id === members[0].id)! : take("lead");
   // Judge: prefer someone powered by a different company, so the second opinion is truly independent.
   const judge = lead ? take("judge", (c) => vendor(c.adapter) !== vendor(lead.adapter)) ?? take("judge") : null;
   while (members.length < size && take("support")) { /* fill */ }
   // keep display order: lead, supports, judge
   members.sort((a, b) => ["lead", "support", "judge"].indexOf(a.role) - ["lead", "support", "judge"].indexOf(b.role));
   void judge;
-  return { members, warnings: checkParty(world, e, members.map((m) => ({ id: m.id, role: m.role }))), estimate: estimate(world, members) };
+  return { members, warnings: checkParty(world, e, members.map((m) => ({ id: m.id, role: m.role }))), estimate: estimate(world, members), leadDecision };
 }
 
 function estimate(world: World, members: Array<{ id: string }>) {
@@ -96,4 +117,35 @@ export function checkParty(world: World, e: Enemy, picks: Array<{ id: string; ro
   if (lc && WEAKNESS[e.kind].length && WEAKNESS[e.kind].length < 5 && !picks.some((p) => { const c = get(p.id); return c && WEAKNESS[e.kind].includes(c.job); }))
     w.push(`No one here is strong against this monster. Try a ${WEAKNESS[e.kind].join(" or ")}.`);
   return w;
+}
+
+/**
+ * The lead is a Council decision. The Law answers when only one hero is trusted to do what the
+ * quest needs. The Ledger answers when one hero's win record on this quest type is clearly best.
+ * Otherwise it goes to you, with the rule-based pick as the suggestion.
+ */
+export function chooseLead(world: World, e: Enemy, pool: Character[], council: Council): Decision<string> {
+  const qt = questTypeOf(e);
+  const eligible = pool.filter((c) => permissionsFor(c.tier)[need(e)]);
+  const law = (): SeatAnswer<string> | null => {
+    if (!eligible.length) return null;
+    if (eligible.length === 1) {
+      return { answer: eligible[0].id, confidence: 1, reasons: [`Only ${eligible[0].name} is trusted to ${need(e) === "exec" ? "run commands" : need(e) === "write" ? "change files" : "do this"}`] };
+    }
+    // Several are eligible: the rules can rank them (trust, strengths, cost) but can't be sure.
+    const top = eligible.map((c) => ({ c, ...fit(c, e, "lead", world) })).sort((a, b) => b.score - a.score)[0];
+    return { answer: top.c.id, confidence: 0.5, reasons: [`Rule of thumb: ${top.c.name} fits best on trust, strengths and cost`] };
+  };
+  const ledger = (): SeatAnswer<string> | null => {
+    if (eligible.length < 2) return null;
+    const all = ledgerRecords(world, qt);
+    const recs = new Map(eligible.map((c) => [c.id, all.get(c.id) ?? { successes: 0, failures: 0 }]));
+    const p = probabilityBest(recs);
+    const [id, conf] = [...p.entries()].sort((a, b) => b[1] - a[1])[0];
+    const r = recs.get(id)!;
+    const name = eligible.find((c) => c.id === id)!.name;
+    return { answer: id, confidence: conf,
+      reasons: [`${name} has won ${+r.successes.toFixed(1)} of ${+(r.successes + r.failures).toFixed(1)} ${QUEST_TYPES[qt].label} quests; ${Math.round(conf * 100)}% likely the best pick`] };
+  };
+  return council.decide<string>("party-lead", `Who should lead ${e.name}?`, { law, ledger }, e.id);
 }
