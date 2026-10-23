@@ -2,6 +2,14 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.1]
+
+### Added
+- `fcrpg --version` (or `-v`) prints the installed version. ([#1](https://github.com/ishboogoo/fantasy-code-rpg/issues/1))
+
+### Changed
+- Releases now publish to npm from GitHub automatically, with a provenance badge showing which commit built each version.
+
 ## [0.2.0] — first public release
 
 ### The game
