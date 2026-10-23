@@ -101,6 +101,7 @@ The browser game plays with the keyboard, like an old console RPG. The mouse wor
 | Esc or X | Go back to Guild Town. From town, go back to the title screen. Does nothing on the title screen |
 | B | Go to battle, from any screen (the title screen too) |
 | V | Battle screen only: open the Treasure Vault |
+| S | Open the party screen (everyone's level, EXP, trust and what the next rank needs) from anywhere but the title screen |
 | P | Take a snapshot of the screen, from anywhere. Ignored while Ctrl, ⌘ or Alt is held, so Ctrl+P still prints |
 
 While you type in a text box or drop-down, no shortcuts run and Esc just leaves the field. While a confirm box is open, only the arrows and Enter/Z work, but P still takes a snapshot.

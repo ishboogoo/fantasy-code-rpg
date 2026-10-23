@@ -13,7 +13,7 @@ import { Store } from "./store.ts";
 import { Council } from "./council.ts";
 import { MAX_SIEGE_PARTS, battle, keepBattle, undoBattle } from "./battle.ts";
 import { QUEST_TYPES, proofOf, questTypeOf } from "./quests.ts";
-import { JOB_ROLE, permissionsFor, recordFor, reliability, title } from "./rules.ts";
+import { JOB_ROLE, permissionsFor, recordFor, reliability, title, xpToNext, TIER_RULES, promotionRecord } from "./rules.ts";
 import { answer, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { checkParty, recommendParty, vendor, type Role } from "./party.ts";
 import { recruit } from "./roster.ts";
@@ -23,7 +23,7 @@ import { ADAPTERS } from "./adapters/index.ts";
 import { career, describeHeroFile, exportHero, importHero, readHero, saveArt } from "./heroes.ts";
 import { refillMp } from "./economy.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
-import type { AdapterKind, Formation, JobLine, World } from "./types.ts";
+import type { AdapterKind, Formation, JobLine, Tier, World } from "./types.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(ROOT, "src", "web");
@@ -61,6 +61,13 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
         veteran: c.veteran ? { guilds: c.veteran.career.guilds, bestTier: c.veteran.career.bestTier } : null,
         proof: (c.proof ?? []).slice(-3).reverse(), proofCount: (c.proof ?? []).length,
         may: Object.entries(p).filter(([, v]) => v === true).map(([k]) => k),
+        xpNext: xpToNext(c.level),
+        // What the next rank asks for, next to what the hero has (the rules canPromote uses).
+        next: c.tier < 4 ? (() => {
+          const r = TIER_RULES[(c.tier + 1) as Tier], pr = promotionRecord(c);
+          return { title: title({ job: c.job, tier: (c.tier + 1) as Tier }), level: r.minLevel, trust: r.minRel, battles: r.minBattles,
+            have: { level: c.level, trust: +reliability(pr).toFixed(2), battles: pr.battles } };
+        })() : null,
       };
     }),
     quests: w.enemies.map((e) => ({

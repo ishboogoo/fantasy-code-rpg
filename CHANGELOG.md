@@ -2,6 +2,14 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.9]
+
+### Added
+- **Party screen.** Press **S** anywhere (or click the new PARTY box in Guild Town) to see every hero's level, EXP to the next level, trust, battles, what they may do now, and exactly what their next rank needs, with their current numbers beside it. Enter opens a hero's card.
+
+### Changed
+- Guild Town counts **quests done**: every quest that is finished, including one you closed as done, not only battles won.
+
 ## [0.2.8]
 
 ### Added

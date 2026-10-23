@@ -2,7 +2,7 @@
 window.I18N = {
   en: {
     continue: 'CONTINUE', newGame: 'NEW GAME', settings: 'SETTINGS', footer: '© 2026 FANTASY CODE RPG PROJECT · FREE AND OPEN SOURCE',
-    town: 'Guild Town', chapterOf: 'quests won', gold: 'G',
+    town: 'Guild Town', chapterOf: 'quests done', partyTitle: 'PARTY', partyHelp: 'Everyone in your guild. ↑ ↓ to choose, Enter for their hero card, Esc to go back.', noHeroes: 'No heroes yet. Recruit one at the Tavern.', exp: 'EXP', battlesN: '{n} battles', mayNow: 'May:', nextRank: 'Next rank: {title}', topRank: 'Highest rank reached.', mayRead: 'read', mayWrite: 'change files', mayExec: 'run commands', mayNetwork: 'use the internet', mayPr: 'open pull requests', mayMerge: 'merge', mayRecruit: 'call in helpers', gold: 'G',
     counter: 'Guild Counter', board: 'Quest Board', warroom: 'War Room', gate: 'Battle Gate', vault: 'Treasure Vault', library: 'Library',
     tavern: 'Tavern', inn: 'Inn',
     counterIdle: 'Tell the Clerk what you need done.', counterWait: '{n} quest(s) need your answer.',
@@ -47,7 +47,7 @@ window.I18N = {
     jobs: { fighter: 'Fighter', mage: 'Mage', cleric: 'Cleric', thief: 'Thief', bard: 'Bard' },
     jobHelp: { fighter: 'Builds: writes the code.', mage: 'Plans and researches.', cleric: 'Reviews and tests.', thief: 'Scouts and debugs.', bard: 'Writes docs.' },
     races: { human: 'Human', elf: 'Elf', dwarf: 'Dwarf', beastkin: 'Beastkin', lizardfolk: 'Lizardfolk', demonkin: 'Demonkin', automaton: 'Automaton', fae: 'Fae' },
-    keys: 'Arrows: move · Enter: choose · Esc: back · P: screenshot',
+    keys: 'Arrows: move · Enter: choose · Esc: back · S: party · P: screenshot',
     rank: 'Rank', bestRank: 'best {n}', cardRecord: '{won} won · {lost} lost · {guilds} guild(s)', cardSkills: 'SKILLS',
     cardNoSkills: 'None yet: skills are learned in battle.', cardProof: '{n} kept change(s)', cardNoProof: 'No kept work yet.',
     cardVeteran: 'Veteran of another guild', cardSaved: 'Saved {file}: share it (tag #fcrpg), and anyone can recruit this hero from it.',
@@ -80,7 +80,7 @@ window.I18N = {
   },
   ja: {
     continue: 'つづきから', newGame: 'はじめから', settings: 'せってい', footer: '© 2026 FANTASY CODE RPG PROJECT · フリー＆オープンソース',
-    town: 'ギルドの町', chapterOf: 'クエスト達成', gold: 'G',
+    town: 'ギルドの町', chapterOf: 'クエスト達成', partyTitle: 'パーティ', partyHelp: 'ギルドの仲間全員。↑↓で選んでEnterでヒーローカード、Escで戻る。', noHeroes: 'まだ仲間がいません。酒場で仲間にしましょう。', exp: '経験値', battlesN: '{n}戦', mayNow: 'できること：', nextRank: '次の階級：{title}', topRank: '最高の階級に到達。', mayRead: '読む', mayWrite: 'ファイルを変更', mayExec: 'コマンドを実行', mayNetwork: 'インターネットを使う', mayPr: 'プルリクエストを出す', mayMerge: 'マージ', mayRecruit: '助っ人を呼ぶ', gold: 'G',
     counter: 'ギルド受付', board: 'クエスト掲示板', warroom: '作戦室', gate: '出撃の門', vault: '宝物庫', library: '書庫',
     tavern: '酒場', inn: '宿屋',
     counterIdle: '受付係に、やってほしいことを伝えよう。', counterWait: '{n}件のクエストが、あなたの返事を待っています。',
@@ -125,7 +125,7 @@ window.I18N = {
     jobs: { fighter: 'ファイター', mage: 'メイジ', cleric: 'クレリック', thief: 'シーフ', bard: 'バード' },
     jobHelp: { fighter: '作る係：コードを書く。', mage: '計画と調査。', cleric: 'レビューとテスト。', thief: '偵察とデバッグ。', bard: 'ドキュメントを書く。' },
     races: { human: '人間', elf: 'エルフ', dwarf: 'ドワーフ', beastkin: '獣人', lizardfolk: 'リザードマン', demonkin: '魔族', automaton: '機械人形', fae: '妖精' },
-    keys: '矢印：移動 · Enter：決定 · Esc：もどる · P：スクショ',
+    keys: '矢印：移動 · Enter：決定 · Esc：もどる · S：パーティ · P：スクショ',
     rank: 'ランク', bestRank: '最高 {n}', cardRecord: '{won}勝 · {lost}敗 · {guilds}ギルド', cardSkills: 'スキル',
     cardNoSkills: 'まだありません。スキルは戦いの中で身につきます。', cardProof: '採用された変更 {n}件', cardNoProof: 'まだ採用された作業はありません。',
     cardVeteran: '他のギルドの古参', cardSaved: '{file} を保存しました。#fcrpg を付けて共有すれば、誰でもこのカードから仲間にできます。',
