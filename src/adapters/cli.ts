@@ -44,6 +44,15 @@ function billing(req: AdapterRequest): "subscription" | "api" {
   return req.character.adapterConfig?.billing === "api" ? "api" : "subscription";
 }
 
+/** Claude Code's error in plain words, so you know whether to retry, wait or split the quest. */
+export function claudeError(subtype: string | undefined, result: string | undefined, maxTurns: number): string {
+  const said = (result ?? "").trim().split("\n")[0].slice(0, 160);
+  if (subtype === "error_max_turns") return `ran out of turns (${maxTurns}) before finishing. Try again, or split the quest into smaller ones`;
+  if (/usage limit|rate limit|limit reached|429|overloaded/i.test(said)) return `hit a Claude limit: ${said}. Wait a while, then try again`;
+  if (subtype === "error_during_execution") return `Claude Code stopped with an error${said ? `: ${said}` : ""}. Try again`;
+  return `Claude Code reported an error${said ? `: ${said}` : subtype ? ` (${subtype})` : ""}`;
+}
+
 /** Claude Code in headless mode. */
 export const claudeCode: Adapter = {
   kind: "claude-code",
@@ -71,12 +80,13 @@ export const claudeCode: Adapter = {
     const r = await runProcess("claude", args, { cwd: req.cwd, env });
     if (r.code !== 0 && !r.stdout) return fail(`claude exited ${r.code}: ${r.stderr.slice(0, 400)}`);
     try {
-      const j = JSON.parse(r.stdout) as { result?: string; total_cost_usd?: number; num_turns?: number; is_error?: boolean };
+      const j = JSON.parse(r.stdout) as { result?: string; total_cost_usd?: number; num_turns?: number; is_error?: boolean; subtype?: string };
       const turns = j.num_turns ?? 1;
       const cost = j.total_cost_usd ?? 0;
+      const error = j.is_error || (j.subtype && j.subtype !== "success") ? claudeError(j.subtype, j.result, req.maxTurns) : undefined;
       return billing(req) === "api"
-        ? { output: j.result ?? "", costGold: cost, costMp: 0, turns, error: j.is_error ? "claude reported an error" : undefined }
-        : { output: j.result ?? "", costGold: 0, costMp: turns, turns, error: j.is_error ? "claude reported an error" : undefined };
+        ? { output: j.is_error ? "" : j.result ?? "", costGold: cost, costMp: 0, turns, error }
+        : { output: j.is_error ? "" : j.result ?? "", costGold: 0, costMp: turns, turns, error };
     } catch {
       return { output: r.stdout, costGold: 0, costMp: 1, turns: 1 };
     }

@@ -53,8 +53,8 @@ export function pickHelper(world: World, prefer: Character["job"][], exclude: Se
   return ok.sort((a, b) => rank(a) - rank(b))[0];
 }
 
-async function ask(world: World, c: Character, prompt: string, cwd: string, store: Store): Promise<{ text: string; costGold: number }> {
-  const r = await ADAPTERS[c.adapter].run({ character: c, prompt, cwd, permissions: READ_ONLY, maxTurns: 8, goldLimit: 0.25, home: store.root, desk: true });
+async function ask(world: World, c: Character, prompt: string, cwd: string, store: Store, maxTurns = 8): Promise<{ text: string; costGold: number }> {
+  const r = await ADAPTERS[c.adapter].run({ character: c, prompt, cwd, permissions: READ_ONLY, maxTurns, goldLimit: 0.25, home: store.root, desk: true });
   spend(world, c, r.costGold, r.costMp);
   if (r.error && !r.output) throw new Error(`${c.name} couldn't answer: ${r.error}`);
   return { text: r.output, costGold: r.costGold };
@@ -352,6 +352,9 @@ export function parsePart(text: string, quest: Enemy, i: number): SiegePart {
 
 export interface WarRoomResult { verdict: "proceed" | "unclear" | "split"; scout?: string; planner?: string; questions: string[]; splits: string[]; risk?: Enemy["risk"] }
 
+/** Reading a big project takes longer: scouts and planners get more turns for bigger quests (9 at Lv 1, 30 at most). */
+export function deskTurns(quest: Pick<Enemy, "level">): number { return Math.min(30, 6 + 3 * Math.max(1, quest.level)); }
+
 /** Read-only scouting, then a plan. Stops early when the Scout finds the quest unclear or really several quests. */
 export async function warRoom(world: World, store: Store, quest: Enemy, cwd: string, leadId?: string, council?: Council): Promise<WarRoomResult> {
   const conditions = quest.criteria.map((k) => `- [${k.id}] ${k.description} (proof: ${k.proof ?? (k.check ? "command" : "judge")})`).join("\n");
@@ -367,7 +370,7 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
       "If unclear, add lines starting QUESTION: . If it splits into parts that different heroes could do at the same time without editing the same files,",
       "add one line per part: SPLIT: <part name> [<condition ids it covers>]. Every condition should belong to exactly one part.",
     ].join("\n");
-    const { text } = await ask(world, scout, prompt, cwd, store);
+    const { text } = await ask(world, scout, prompt, cwd, store, deskTurns(quest));
     result.scout = scout.name;
     quest.scouting = text.trim();
     store.writeScroll(quest.id, `${scout.name} (scouting report)`, text);
@@ -391,7 +394,7 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
       quest.scouting ? `Scouting report:\n${quest.scouting}` : "",
       "Write a short numbered plan: the steps, the files to touch, how each victory condition will be proven, the main risks, and a rough cost.",
     ].join("\n");
-    const { text } = await ask(world, planner, prompt, cwd, store);
+    const { text } = await ask(world, planner, prompt, cwd, store, deskTurns(quest));
     result.planner = planner.name;
     quest.plan = text.trim();
     store.writeScroll(quest.id, `${planner.name} (plan)`, text);
