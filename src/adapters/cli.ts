@@ -64,6 +64,9 @@ export const claudeCode: Adapter = {
     // VERIFY: `--settings <file>` merges hooks on your Claude Code version.
     if (req.home) args.push("--settings", hookSettings(req.home, "claude-settings.json", claudeHooks(COMMANDS)));
     const env = hookEnv(req);
+    // A hero on your Claude plan must never fall back to an API key in your environment (that would bill API
+    // credits). Only heroes recruited with --billing api keep the key.
+    if (billing(req) === "subscription") { delete env.ANTHROPIC_API_KEY; delete env.ANTHROPIC_AUTH_TOKEN; }
 
     const r = await runProcess("claude", args, { cwd: req.cwd, env });
     if (r.code !== 0 && !r.stdout) return fail(`claude exited ${r.code}: ${r.stderr.slice(0, 400)}`);
