@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
 import { MAX_SIEGE_PARTS, battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
 import { Council } from "./council.ts";
@@ -61,6 +62,7 @@ Fantasy Code RPG — a 90s-RPG harness for AI agent teams
   fcrpg gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
   fcrpg stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
   fcrpg statusline                         One-line HUD for Claude Code's status line
+  fcrpg --version                          Print the version
 
 Adapters: ${Object.keys(ADAPTERS).join(", ")}
 Jobs:     ${Object.keys(JOB_TITLES).join(", ")}
@@ -77,7 +79,7 @@ const { values, positionals } = parseArgs({
     criteria: { type: "string", multiple: true }, check: { type: "string", multiple: true },
     guard: { type: "string" }, gold: { type: "string" }, turns: { type: "string" },
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
-    battles: { type: "string" }, help: { type: "boolean", short: "h" },
+    battles: { type: "string" }, help: { type: "boolean", short: "h" }, version: { type: "boolean", short: "v" },
     type: { type: "string" }, "in-place": { type: "boolean" },
     port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
     part: { type: "string", multiple: true },
@@ -107,7 +109,14 @@ function parseCriteria(list: string[] = [], checks: string[] = []): Enemy["crite
   return crit.map((k, i) => ({ ...k, check: byId.get(k.id) ?? byPos[i], met: false }));
 }
 
+/** The version in package.json, one folder up from this file (src/ when run from source, dist/ when installed). */
+function version(): string {
+  const pkg = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+  return (JSON.parse(readFileSync(pkg, "utf8")) as { version: string }).version;
+}
+
 async function main(): Promise<void> {
+  if (values.version) { console.log(`fcrpg ${version()}`); return; }
   if (!cmd || values.help) { console.log(HELP); return; }
 
   if (cmd === "init") {
