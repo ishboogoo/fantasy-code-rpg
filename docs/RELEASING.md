@@ -56,15 +56,14 @@ Save. From now on, no npm token lives anywhere: GitHub proves to npm that the re
 
 ## Every release after that
 
-1. Update `CHANGELOG.md`: a new `## [x.y.z]` section at the top.
-2. Bump the version without tagging: `npm version x.y.z --no-git-tag-version`.
-3. Commit, open a pull request, and merge it once CI passes.
-4. Tag the merged commit and push the tag:
-   ```bash
-   git checkout main && git pull
-   git tag vx.y.z && git push origin vx.y.z
-   ```
-5. The **Release** workflow runs the tests, checks that the tag matches `package.json`, publishes to npm and creates the GitHub release from the changelog section.
+Releases happen by themselves when a new version reaches `main`:
+
+1. In a pull request, add a `## [x.y.z]` section at the top of `CHANGELOG.md` and bump the version with `npm version x.y.z --no-git-tag-version`.
+2. Merge it once CI passes.
+
+The **Release** workflow sees that `main` carries a version with no tag yet, runs the tests, publishes it to npm (with provenance, through trusted publishing), and creates the `vx.y.z` tag and GitHub release with the changelog section as notes. If the changelog has no section for the new version, it stops and publishes nothing.
+
+You can still release by hand by creating a release with a new `v*` tag on GitHub; the workflow then publishes and fills in the notes.
 
 Version numbers: until 1.0, bump the **minor** number (0.3.0) for anything that changes commands or saved guilds, and the **patch** number (0.2.1) for fixes.
 

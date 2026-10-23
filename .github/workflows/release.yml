@@ -1,32 +1,61 @@
 name: Release
-# Push a tag like v0.2.0 to publish that version to npm and make a GitHub release.
-# Uses npm trusted publishing (no token stored in GitHub): set it up once on npmjs.com,
-# see docs/RELEASING.md.
+# Releases itself: whenever main carries a version (package.json) that has no tag yet, this runs the
+# tests, publishes that version to npm and creates the tag and GitHub release from CHANGELOG.md.
+# A release made by hand on GitHub (pushing a v* tag) works too.
+# Publishing uses npm trusted publishing (no token stored in GitHub); see docs/RELEASING.md.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
 permissions:
-  contents: write   # create the GitHub release
+  contents: write   # create the tag and the GitHub release
   id-token: write   # prove to npm that this workflow is publishing
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Is there a new version to release?
+        id: plan
+        run: |
+          VERSION=$(node -p 'require("./package.json").version')
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Only main or a version tag may release, whatever the trigger (a manual run can pick any branch).
+          if [ "$GITHUB_REF_TYPE" = "branch" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "Releases only come from main or a v* tag, not $GITHUB_REF_NAME; nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            test "$GITHUB_REF_NAME" = "$TAG" || { echo "Tag $GITHUB_REF_NAME doesn't match package.json ($TAG)"; exit 1; }
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG is already released; nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $VERSION"; exit 1; }
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.plan.outputs.go == 'true'
         with: { node-version: 24, registry-url: "https://registry.npmjs.org" }
-      - run: npm ci || npm install
-      - run: npm run typecheck
-      - run: npm test
-      - name: Tag matches package.json
-        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - name: Publish to npm (skipped if this version is already there, e.g. the first release made by hand)
+      - if: steps.plan.outputs.go == 'true'
+        run: npm ci || npm install
+      - if: steps.plan.outputs.go == 'true'
+        run: npm run typecheck && npm test
+      - name: Publish to npm (skipped if this version is already there)
+        if: steps.plan.outputs.go == 'true'
         run: |
-          if npm view "fantasy-code-rpg@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then echo "Already on npm."; else npm publish --access public; fi
-      - name: GitHub release
-        env: { GH_TOKEN: "${{ github.token }}" }
-        # Creates the release, or, if you made it by hand on GitHub, fills in its notes from CHANGELOG.md.
+          if npm view "fantasy-code-rpg@${{ steps.plan.outputs.version }}" version >/dev/null 2>&1; then echo "Already on npm."; else npm publish --access public; fi
+      - name: Tag and GitHub release (notes from CHANGELOG.md)
+        if: steps.plan.outputs.go == 'true'
+        env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ steps.plan.outputs.tag }}", VERSION: "${{ steps.plan.outputs.version }}" }
         run: |
-          awk "/^## \\[${GITHUB_REF_NAME#v}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md > notes.md
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
-          else gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md; fi
+          awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then gh release edit "$TAG" --notes-file notes.md
+          else gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md; fi
