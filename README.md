@@ -104,7 +104,7 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`savepoint play`). Wait mode (heroes ask before going beyond their rank). the Seer, lessons and house rules in the Chronicle, and suggestions that learn from your picks. 53 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`savepoint play`). Wait mode (heroes ask before going beyond their rank). the Seer, lessons and house rules in the Chronicle, and suggestions that learn from your picks. Pincer formation (two approaches, the better one wins). 56 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild

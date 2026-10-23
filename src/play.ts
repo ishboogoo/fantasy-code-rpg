@@ -66,7 +66,7 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
       conditions: e.criteria.map((k) => ({ id: k.id, text: k.description, met: k.met, proof: proofOf(k), check: k.check ?? null })),
     })),
     battles: w.battles.slice(-30).map((b) => ({
-      id: b.id, quest: b.enemyId, outcome: b.verdict.outcome, review: b.review, awaitingYou: b.awaitingYou ?? [],
+      id: b.id, quest: b.enemyId, outcome: b.verdict.outcome, review: b.review, awaitingYou: b.awaitingYou ?? [], hasAlternate: !!b.alternate, formation: b.formation ?? "relay",
       party: b.party.map((p) => p.characterId), xp: b.xpAwarded, at: b.at, notes: b.verdict.notes, judgedBy: b.verdict.judgedBy,
       promotions: b.promotions, curses: b.curses,
     })),
@@ -139,7 +139,7 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         book.decide(id, decision, decision === "handoff" ? String(b.to) : undefined);
         return { message: decision === "allow" ? "Allowed, just this once." : decision === "deny" ? "Denied." : "Handed over." };
       }
-      case "keep": return { message: await change((w) => keepBattle(w, store, id, projectDir)) };
+      case "keep": return { message: await change((w) => keepBattle(w, store, id, projectDir, !!b.other)) };
       case "undo": return { message: await change((w) => undoBattle(w, store, id, projectDir, council, b.why ? String(b.why).slice(0, 300) : undefined)) };
       case "approve": return change(async (w) => {
         const q = quest(w);
@@ -183,7 +183,8 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         const suggested = lastLeadSuggestion(council.decisions(), id);
         if (ids.length && suggested && suggested !== ids[0]) { recordChoice(w, questTypeOf(quest(w)), ids[0], suggested); store.save(w); }
         // The battle runs on; its progress arrives over the event stream.
-        void battle({ world: w, store, enemyId: id, partyIds, judge: { kind: "auto" }, cwd: projectDir, council, debrief: true })
+        const formation = b.formation === "pincer" ? "pincer" as const : undefined;
+        void battle({ world: w, store, enemyId: id, partyIds, judge: { kind: "auto" }, cwd: projectDir, council, debrief: true, formation })
           .then(() => store.save(w))
           .catch((e: unknown) => store.event({ type: "say", text: `✖ ${e instanceof Error ? e.message : String(e)}` }))
           .finally(() => { fighting = null; store.event({ type: "idle" }); });

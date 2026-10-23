@@ -68,6 +68,13 @@ export const mock: Adapter = {
       const extra = verdict === "unclear" ? "\nQUESTION: Which page do you mean?" : verdict === "split" ? "\nSPLIT: first part\nSPLIT: second part" : "";
       return { output: `Scouting report: the relevant code is in src/.${extra}\nVERDICT: ${verdict}`, costGold, costMp: 0, turns: 1 };
     }
+    if (req.prompt.startsWith("[COMPARE]")) {
+      // Prefers the solution whose changes mention GOOD; otherwise calls it a tie.
+      const one = req.prompt.split("Solution 2 (changes):")[0].split("Solution 1 (changes):")[1] ?? "";
+      const two = req.prompt.split("Solution 2 (changes):")[1] ?? "";
+      const better = /GOOD/.test(one) && !/GOOD/.test(two) ? "1" : /GOOD/.test(two) && !/GOOD/.test(one) ? "2" : "tie";
+      return { output: JSON.stringify({ better, why: "Mock comparison." }), costGold, costMp: 0, turns: 1 };
+    }
     if (req.prompt.startsWith("[SEER]")) {
       const material = req.prompt.split("Material")[1] ?? "";
       const word = /crash|bug|fail|broken/i.test(material) ? "fix" : /guide|docs?|readme/i.test(material) ? "write" : /which|should we|compare/i.test(material) ? "explore" : "build";

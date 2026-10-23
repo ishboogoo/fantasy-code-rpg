@@ -225,12 +225,33 @@
     var picks = { lead: null, support: null }, order = ['lead', 'support'];
     var slotEls = {};
     right.appendChild(el('div', 'label', t('party')));
+    var supportLabel;
     order.forEach(function (role) {
       var sl = el('div', 'slot'); sl.setAttribute('role', 'button'); sl.tabIndex = 0;
       sl.addEventListener('click', function () { cycle(role); });
       sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { cycle(role); e.preventDefault(); } });
-      right.appendChild(el('div', 'quiet', t(role))); right.appendChild(sl); slotEls[role] = sl;
+      var lab = el('div', 'quiet', t(role)); if (role === 'support') supportLabel = lab;
+      right.appendChild(lab); right.appendChild(sl); slotEls[role] = sl;
     });
+    // Formation: Relay by default; Pincer (two approaches, the better one wins) costs about twice as much.
+    var formation = 'relay';
+    var lostBefore = s.battles.some(function (x) { return x.quest === q.id && (x.outcome !== 'victory' || x.review === 'undone'); });
+    var fRow = el('div'); fRow.style.cssText = 'margin-top:6px';
+    var fLabel = el('div', 'quiet', t('formation')); right.appendChild(fLabel);
+    var fBtns = el('div'); fBtns.style.cssText = 'display:flex;gap:14px';
+    ['relay', 'pincer'].forEach(function (f) {
+      var bt = el('button', '', t(f)); bt.type = 'button';
+      bt.style.cssText = 'font:inherit;font-size:16px;background:none;border:0;cursor:pointer;text-shadow:2px 2px 0 #020806';
+      bt.addEventListener('click', function () { formation = f; paintF(); });
+      fBtns.appendChild(bt);
+    });
+    var fHelp = el('div', 'quiet'); fHelp.style.cssText = 'font-size:13px;line-height:18px';
+    function paintF() {
+      [].forEach.call(fBtns.children, function (bt, i) { bt.style.color = ['relay', 'pincer'][i] === formation ? '#ffffff' : '#3a8a5a'; });
+      fHelp.textContent = formation === 'pincer' ? t('pincerHelp') : (lostBefore ? t('pincerHint') : t('relayHelp'));
+      supportLabel.textContent = formation === 'pincer' ? t('secondLead') : t('support');
+    }
+    right.appendChild(fBtns); right.appendChild(fHelp);
     right.appendChild(el('div', 'quiet', t('judge'))); var jn = el('div', '', t('judgeAuto')); jn.style.fontSize = '13px'; jn.style.lineHeight = '18px'; right.appendChild(jn);
     var warn = el('div', 'warn'); warn.style.cssText = 'font-size:13px;line-height:18px;margin-top:8px'; right.appendChild(warn);
     var note = el('div', 'quiet', t('clickToSwap')); note.style.cssText = 'font-size:13px;line-height:18px;margin-top:6px'; right.appendChild(note);
@@ -283,10 +304,12 @@
     if (!q.approved) items.push({ label: t('approve'), action: function () { G.cmd('approve', { id: q.id }).then(function () { G.go('warroom', { id: q.id }); }); } });
     items.push({ label: t('depart'), disabled: !q.approved || q.questions.length > 0 || !!s.fighting, action: function () {
       var party = [picks.lead, picks.support].filter(Boolean);
-      G.cmd('battle', { id: q.id, party: party }).then(function () { G.go('battle'); });
+      if (formation === 'pincer' && party.length < 2) { G.toast(t('pincerNeedsTwo'), true); return; }
+      G.cmd('battle', { id: q.id, party: party, formation: formation }).then(function () { G.go('battle'); });
     } });
     items.push({ label: t('back'), action: function () { G.go('board'); } });
     G.menu(foot, items, { row: true, small: true });
+    paintF();
   };
 
   // ---------------- Treasure Vault (Review) ----------------
@@ -309,8 +332,10 @@
     G.menu(w, [
       { label: t('keep'), action: function () { G.cmd('keep', { id: b.id }).then(function (r) { G.toast(r.message); G.go('vault'); }); } },
       { label: t('undo'), action: function () { G.cmd('undo', { id: b.id, why: why.value }).then(function (r) { G.toast(r.message); G.go('vault'); }); } },
+    ].concat(b.hasAlternate ? [{ label: t('keepOther'), action: function () { G.cmd('keep', { id: b.id, other: true }).then(function (r) { G.toast(r.message); G.go('vault'); }); } }] : []).concat([
       { label: t('later'), action: function () { G.go('town'); } },
-    ], { row: true });
+    ]), { row: true });
+    if (b.hasAlternate) w.insertBefore(el('div', 'gold', t('twoApproaches')), why);
   };
 
   // ---------------- Tavern (recruit) ----------------

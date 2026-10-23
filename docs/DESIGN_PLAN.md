@@ -25,7 +25,7 @@ You decide at Request (what "done" means), Plan, and Review. In Story mode, only
 | 3 Plan | War Room | Steps, files, test strategy, risks, cost; big quests split | Plans are checked in seconds; bad code takes hours | ✅ `savepoint plan`, `approve`; the plan goes to the party |
 | 4 Form party | War Room | Recommended lead, supports, judge, formation, tactics; swap anyone | Puts each AI on work it has a record at; keeps the judge independent | ✅ recommendation + warnings, lead chosen by the Council |
 | 5 Battle | Battlefield | Heroes work in a private copy; a save point after each turn | Nothing breaks your project; any step can be undone | ✅ instances + save points |
-| 6 Review | Treasure Vault | Proof per condition, cross-company judge, Keep / Undo | Evidence, not claims | ✅ Keep / Undo, fair cross-company vote per condition, your conditions settled at Keep |
+| 6 Review | Treasure Vault | Proof per condition, cross-company judge, Keep / Undo | Evidence, not claims | ✅ Keep / Undo, fair cross-company vote per condition, your conditions settled at Keep, Pincer side-by-side |
 | 7 Debrief | Library | Lessons to the Chronicle; outcomes marked on every Council decision | How the guild adapts to you | ✅ Council outcomes · 🔨 lessons |
 
 ## 2. Quest types
@@ -44,7 +44,7 @@ Defined in `src/quests.ts`.
 ## 3. Parties
 
 - **Roles:** Lead (main work; must be trusted for what the quest needs), Support, Scout (read-only; how Novices earn trust), Judge (never the worker; preferably another company). Max 4.
-- **Formations:** Solo · Relay (default) · Pincer (two leads, judge picks; ~2×) · Siege (split, parallel). All must fit the quest's one budget.
+- **Formations:** Solo · Relay (default) · Pincer (✅ built: two approaches in two copies, checks then an order-swapped cross-company vote; ~2×) · Siege (split, parallel; 🔨). All must fit the quest's one budget.
 - **Tactics:** Careful · Balanced (default) · Bold · Frugal.
 - **Recommendation:** can they do it → have they won this kind before (the Ledger) → available → independent judge → cost. Your swaps teach it (🔨).
 
@@ -140,7 +140,7 @@ Every decision is answered by the cheapest seat that is sure enough, written to 
 | 1 Law | Risky actions, budget, loops, "it has a test: run it", quest type by keywords, lead when only one hero qualifies | Free | No rule applies | ✅ quest type, lead · 🔨 loop detection |
 | 2 Ledger | Lead by win record per quest type × hero (Thompson sampling) | Free | Too little data, or no clear best | ✅ |
 | 3 Seer | Quest type, clarity, risk, stuck; asked 3×, unanimous only | < 1 s, fractions of a cent (estimate) | Answers disagree, or under the bar | ✅ quest type (any hero you seat) · 🔨 risk, stuck; outside services |
-| 4 Trial | Proof of victory; which of two solutions. Run checks first; then up to 3 judges from different companies, authors hidden, order rotated, unanimous vote per condition | Seconds–minutes, ~3¢ (estimate) | Split, tests vs judges | ✅ proof vote · 🔨 comparing two solutions |
+| 4 Trial | Proof of victory; which of two solutions. Run checks first; then up to 3 judges from different companies, authors hidden, order rotated, unanimous vote per condition | Seconds–minutes, ~3¢ (estimate) | Split, tests vs judges | ✅ proof vote · ✅ comparing two solutions (Pincer) |
 | 5 You | Irreversible actions, splits, unclear requests | Your time | — | ✅ (suggestion shown) |
 
 Bars: 0.95 for hard-to-undo decisions, 0.85 otherwise; recalibrated weekly from outcomes (batch jobs at half price). A decision type moves to a cheaper seat after ~50 correct cases (our rule of thumb). Prompts share a fixed cached prefix (5–10% of input price at Anthropic, OpenAI and Google).

@@ -105,6 +105,9 @@ export interface BattleReport {
   questType?: QuestType;
   /** Present when the battle ran in its own copy of the project. */
   instance?: InstanceInfo;
+  /** Pincer only: the other approach, kept when the judges couldn't agree so you can choose it instead. */
+  alternate?: InstanceInfo;
+  formation?: "relay" | "pincer";
   /** Treasure Vault state: changes wait for you to keep or undo them. */
   review?: "pending" | "kept" | "undone" | "nothing";
   /** Victory conditions this battle newly met, so an undo can reopen exactly those. */

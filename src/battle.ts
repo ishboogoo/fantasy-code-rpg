@@ -14,7 +14,7 @@ import { canIsolate, createInstance, discard, keep, savePoint, changes } from ".
 import { proofOf, questTypeOf } from "./quests.ts";
 import { debrief, lastJson } from "./stages.ts";
 import { vendor } from "./party.ts";
-import type { Council } from "./council.ts";
+import type { Council, SeatAnswer } from "./council.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
 import { existsSync as exists, readdirSync, rmSync } from "node:fs";
 import { join as joinPath } from "node:path";
@@ -42,6 +42,8 @@ export interface BattleOptions {
   council?: Council;
   /** Ask a hero who didn't fight to write the quest's lessons into the Chronicle afterwards. */
   debrief?: boolean;
+  /** Pincer: the first two heroes each try their own approach in their own copy; the better one goes to the Vault. */
+  formation?: "relay" | "pincer";
 }
 
 export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
@@ -187,6 +189,53 @@ async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Characte
   return { outcome, correctness, quality, notes: notes.trim(), judgedBy: judgedBy.join("+") || "nobody", costGold, awaitingYou };
 }
 
+/**
+ * Pincer: which of two approaches is better? Run it first (the Law): if one passes more checks, it wins.
+ * Otherwise vote (the Trial): judges from other companies compare both, in both orders, authors hidden;
+ * a judge whose answer flips with the order cancels itself out. A split leaves both for you to choose.
+ */
+async function comparePincer(opts: BattleOptions, enemy: Enemy, leads: Character[], insts: InstanceInfo[], battleId: string):
+  Promise<{ winner: 0 | 1; sure: boolean; reason: string }> {
+  const { world, store } = opts;
+  const passed = await Promise.all(insts.map((i) => runChecks(enemy, i.path)));
+  const diffs = await Promise.all(insts.map(async (i) => (await runProcess("git", ["diff", `${i.base}..HEAD`], { cwd: i.path, timeoutMs: 60_000 })).stdout.slice(0, 15_000)));
+  const law = (): SeatAnswer<0 | 1> | null => passed[0].size === passed[1].size ? null
+    : { answer: passed[0].size > passed[1].size ? 0 : 1, confidence: 1, reasons: [`Approach ${passed[0].size > passed[1].size ? "A" : "B"} passes more checks (${Math.max(passed[0].size, passed[1].size)} vs ${Math.min(passed[0].size, passed[1].size)})`] };
+  const votes: Array<0 | 1> = [];
+  if (!law()) {
+    for (const j of chooseJudges(world, leads, opts.judge.kind === "tests" ? { kind: "auto" } : opts.judge)) {
+      const ask = async (first: 0 | 1): Promise<0 | 1 | null> => {
+        const second = (1 - first) as 0 | 1;
+        const prompt = [
+          "[COMPARE] You are an impartial reviewer. Two separate solutions to the same quest follow. You don't know who wrote them.",
+          `Quest: ${enemy.name}\n${enemy.description}`, "Conditions:", ...enemy.criteria.map((k) => `* ${k.id}: ${k.description}`),
+          "Solution 1 (changes):", anonymize(diffs[first], leads) || "(no changes)",
+          "Solution 2 (changes):", anonymize(diffs[second], leads) || "(no changes)",
+          'Which better meets the conditions with less risk? Reply with JSON only: {"better": "1" or "2" or "tie", "why": "..."}',
+        ].join("\n");
+        const r = await ADAPTERS[j.adapter].run({ character: j, prompt, cwd: insts[0].path, permissions: { ...permissionsFor(0) }, maxTurns: 5, goldLimit: 0.5 });
+        spend(world, j, r.costGold, r.costMp);
+        const b = String(lastJson<{ better?: string }>(r.output)?.better ?? "");
+        return b === "1" ? first : b === "2" ? second : null;
+      };
+      const [x, y] = [await ask(0), await ask(1)];
+      if (x !== null && x === y) votes.push(x); // consistent across both orders
+    }
+  }
+  const trial = (): SeatAnswer<0 | 1> | null => {
+    if (!votes.length) return null;
+    const a = votes.filter((v) => v === 0).length;
+    const answer: 0 | 1 = a * 2 >= votes.length ? 0 : 1;
+    return { answer, confidence: Math.max(a, votes.length - a) / votes.length, reasons: [`${votes.length} judge(s) gave a consistent answer; ${answer === 0 ? a : votes.length - a} chose approach ${answer === 0 ? "A" : "B"}`] };
+  };
+  const d = opts.council ? opts.council.decide<0 | 1>("compare", `Which approach to ${enemy.name} is better?`, { law, trial }, enemy.id)
+    : (() => { const l = law() ?? trial(); return { answer: l && l.confidence >= 0.95 ? l.answer : null, suggestion: l?.answer, reasons: l?.reasons ?? [] }; })();
+  const winner = (d.answer ?? d.suggestion ?? 0) as 0 | 1;
+  const sure = d.answer !== null && d.answer !== undefined;
+  store.event({ battle: battleId, type: "compare", winner: leads[winner].id, sure });
+  return { winner, sure, reason: sure ? `${leads[winner].name}'s approach wins. ${d.reasons[0] ?? ""}` : `The judges couldn't agree; ${leads[winner].name}'s approach goes first, and you choose at the Vault.` };
+}
+
 export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const { world, store, cwd } = opts;
   const battleId = randomUUID().slice(0, 8);
@@ -208,9 +257,11 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
 
   // A private copy of the project, with save points after every turn.
   const isolate = opts.isolate ?? await canIsolate(cwd);
+  if (opts.formation === "pincer" && (!isolate || party.length < 2)) throw new Error("Pincer needs two heroes and a git project with a commit (each approach runs in its own copy).");
   let inst: InstanceInfo | undefined;
   if (isolate) inst = await createInstance(cwd, battleId);
   const workdir = inst?.path ?? cwd;
+  void workdir;
   const metBefore = new Set(enemy.criteria.filter((k) => k.met).map((k) => k.id));
   const startedAt = new Date().toISOString();
   resetStopCounters(store.root, enemy.id);
@@ -228,7 +279,45 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const budgetGold = enemy.budget.gold ?? 1;
   const maxTurns = enemy.budget.maxTurns ?? 20;
 
-  for (const c of party) {
+  let pincerLoser: Character | undefined;
+  let alternate: InstanceInfo | undefined;
+  if (opts.formation === "pincer") {
+    if (!inst) throw new Error("Pincer needs a git project: each approach runs in its own copy.");
+    if (party.length < 2) throw new Error("Pincer needs two heroes to try two approaches.");
+    const [a, b2] = party;
+    party.length = 2; // supports sit this one out
+    const instB = await createInstance(cwd, `${battleId}-b`);
+    say(`  ⚔ Pincer: ${a.name} and ${b2.name} each try their own approach.`);
+    const runOne = async (c: Character, where: InstanceInfo, label: string) => {
+      const perms = permissionsFor(c.tier);
+      const goldLimit = Math.min((budgetGold - costGold) / 2, perms.maxGoldPerBattle);
+      emit({ type: "turn", hero: c.id });
+      const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store) + `\n\nYou are approach ${label}; another hero is trying their own approach separately. Do your best version.`,
+        cwd: where.path, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
+      spend(world, c, r.costGold, r.costMp);
+      costGold += r.costGold; costMp += r.costMp; turns += r.turns;
+      store.writeScroll(enemy.id, `${c.name} (${title(c)}, approach ${label})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
+      const sp = await savePoint(where, `${c.name} approach ${label} on ${enemy.id}`);
+      if (sp) emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) });
+      return r;
+    };
+    const [ra, rb] = await Promise.all([runOne(a, inst, "A"), runOne(b2, instB, "B")]);
+    if (ra.violation) critical = `${a.name} ${ra.violation}`;
+    if (rb.violation) critical = `${b2.name} ${rb.violation}`;
+    const pick = await comparePincer(opts, enemy, [a, b2], [inst, instB], battleId);
+    say(`  ⚖ ${pick.reason}`);
+    const winner = pick.winner === 0 ? inst : instB;
+    const loser = pick.winner === 0 ? instB : inst;
+    pincerLoser = pick.winner === 0 ? b2 : a;
+    if (pick.sure) await discard(cwd, loser);
+    else { alternate = loser; say(`  ↔ The other approach is kept too: at the Vault you can keep it instead (savepoint keep ${battleId} --other).`); }
+    inst = winner;
+    // The winner's lead goes first in the report, so the Council's choice of lead is judged fairly.
+    if (pick.winner === 1) party.reverse();
+  }
+  const fightDir = inst?.path ?? cwd;
+
+  for (const c of opts.formation === "pincer" ? [] : party) {
     const perms = permissionsFor(c.tier);
     const goldLimit = Math.min(budgetGold - costGold, perms.maxGoldPerBattle);
     const broke = canAfford(world, c, Math.min(goldLimit, 0.01), c.mp ? 1 : 0);
@@ -236,7 +325,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     say(`  ${c.name} the ${title(c)} acts…`);
     emit({ type: "turn", hero: c.id });
     const before = store.violationCount(c.id);
-    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: workdir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
+    const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: fightDir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
     const blocked = store.violationCount(c.id) - before;
     if (blocked > 0 && !r.violation) r.violation = `was stopped by the Gatekeeper ${blocked} time(s)`;
     spend(world, c, r.costGold, r.costMp);
@@ -261,11 +350,11 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     }
   }
 
-  const verdict = await judgeBattle(opts, enemy, party, workdir, inst);
+  const verdict = await judgeBattle(opts, enemy, party, fightDir, inst);
   const judgeGold = verdict.costGold; // the referee's fee doesn't count against the party's budget
 
   if (!critical && enemy.guard) {
-    const g = await runProcess("sh", ["-c", enemy.guard], { cwd: workdir, timeoutMs: 15 * 60_000 });
+    const g = await runProcess("sh", ["-c", enemy.guard], { cwd: fightDir, timeoutMs: 15 * 60_000 });
     if (g.code !== 0) critical = "guard check failed (regression)";
   }
   if (!critical && costGold > budgetGold + 1e-9) critical = `overspent: ${costGold.toFixed(3)}G of ${budgetGold}G`;
@@ -282,6 +371,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     xpAwarded[c.id] = xp;
     const rec = recordFor(c);
     const t = trialFor(verdict.outcome, verdict.correctness);
+    // In a Pincer, the approach that wasn't chosen isn't a failure: its hero gets XP but no change in trust.
+    if (c === pincerLoser) { if (levels) say(`  ✨ ${c.name} reached Lv ${c.level}!`); continue; }
     // Every member is accountable for the whole outcome, so trust counts the full trial.
     rec.successes += t.s;
     rec.failures += t.f;
@@ -302,7 +393,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   if (inst) {
     if (!inst.savePoints.length && verdict.awaitingYou.length) { await discard(cwd, inst); inst.savePoints = []; review = "pending"; say(`  📦 Treasure Vault: no files changed, but ${verdict.awaitingYou.length} condition(s) wait for you. Keep or undo: savepoint keep ${battleId} · savepoint undo ${battleId}`); }
     else if (!inst.savePoints.length) { await discard(cwd, inst); review = "nothing"; }
-    else if (verdict.outcome === "critical") { await discard(cwd, inst); review = "undone"; say("  🗑 The party's changes were thrown away (critical failure). Your project is untouched."); }
+    else if (verdict.outcome === "critical") { await discard(cwd, inst); if (alternate) { await discard(cwd, alternate); } review = "undone"; say("  🗑 The party's changes were thrown away (critical failure). Your project is untouched."); }
     else {
       review = "pending";
       const ch = await changes(inst);
@@ -328,7 +419,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   }
 
   const report: BattleReport = {
-    id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review,
+    id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review, alternate, formation: opts.formation,
     newlyMet: enemy.criteria.filter((k) => k.met && !metBefore.has(k.id)).map((k) => k.id),
     awaitingYou: verdict.awaitingYou.length ? verdict.awaitingYou : undefined,
     party: party.map((c) => ({ characterId: c.id, share })),
@@ -351,8 +442,14 @@ function pendingBattle(world: World, battleId: string): BattleReport {
 }
 
 /** Keep the battle's changes: they are merged into your project. */
-export async function keepBattle(world: World, store: Store, battleId: string, cwd: string): Promise<string> {
+export async function keepBattle(world: World, store: Store, battleId: string, cwd: string, other = false): Promise<string> {
   const b = pendingBattle(world, battleId);
+  if (other) {
+    if (!b.alternate) throw new Error("This battle has no other approach to keep.");
+    if (b.instance) await discard(cwd, b.instance);
+    b.instance = b.alternate;
+  } else if (b.alternate) await discard(cwd, b.alternate);
+  b.alternate = undefined;
   const msg = b.instance?.savePoints.length ? await keep(cwd, b.instance) : "Confirmed.";
   b.review = "kept";
   store.event({ type: "review", battle: battleId, decision: "kept" });
@@ -373,6 +470,7 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
 export async function undoBattle(world: World, store: Store, battleId: string, cwd: string, council?: Council, why?: string): Promise<string> {
   const b = pendingBattle(world, battleId);
   if (b.instance?.savePoints.length) await discard(cwd, b.instance);
+  if (b.alternate) { await discard(cwd, b.alternate); b.alternate = undefined; }
   b.review = "undone";
   store.event({ type: "review", battle: battleId, decision: "undone" });
   const enemy = world.enemies.find((e) => e.id === b.enemyId);

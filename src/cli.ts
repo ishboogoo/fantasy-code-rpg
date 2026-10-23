@@ -46,7 +46,8 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
   savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
                      [--in-place]  run in your folder instead of a private copy (no undo)
-  savepoint keep <battle-id>                   Treasure Vault: bring a battle's changes into your project
+                     [--formation pincer]  the first two heroes each try their own approach; the better one wins
+  savepoint keep <battle-id> [--other]         Treasure Vault: bring a battle's changes into your project (--other: the Pincer's other approach)
   savepoint undo <battle-id> [--why "..."]      Treasure Vault: throw a battle's changes away (counts as a loss); your reason becomes a house rule
   savepoint seer <hero> | --off                Seat a hero as the Seer: a cheap, fast model the Council asks three times
   savepoint council                            How each Council seat has decided, and how often it was right
@@ -77,7 +78,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
-    port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" },
+    port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" }, formation: { type: "string" }, other: { type: "boolean" },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
@@ -255,7 +256,8 @@ async function main(): Promise<void> {
         const suggested = lastLeadSuggestion(council.decisions(), foe.id);
         if (suggested && partyIds[0] && suggested !== partyIds[0]) recordChoice(world, questTypeOf(foe), partyIds[0], suggested);
       }
-      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, debrief: true, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
+      const formation = values.formation === "pincer" ? "pincer" : undefined;
+      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, debrief: true, formation, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
       save();
       console.log(reportScreen(world, r));
       return;
@@ -272,7 +274,7 @@ async function main(): Promise<void> {
     }
     case "keep": {
       if (!rest[0]) throw new Error("Usage: keep <battle-id>");
-      console.log(`📦 ${await keepBattle(world, store, rest[0], cwd)}`);
+      console.log(`📦 ${await keepBattle(world, store, rest[0], cwd, !!values.other)}`);
       const offer = adventurerOffer(world);
       if (offer) console.log(`💡 ${offer}`);
       save();
