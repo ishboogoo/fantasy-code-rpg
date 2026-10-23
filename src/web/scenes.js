@@ -6,7 +6,7 @@
 
   function waiting(s) {
     return {
-      counter: s.quests.filter(function (q) { return q.questions.length; }).length,
+      counter: s.quests.filter(function (q) { return q.questions.length && G.isOpen(q); }).length,
       warroom: s.quests.filter(function (q) { return !q.approved && !q.questions.length && G.isOpen(q); }).length,
       vault: s.battles.filter(function (b) { return b.review === 'pending'; }).length,
       inn: s.party.filter(function (c) { return c.status.indexOf('resting') >= 0 || (c.mp && c.mp.current <= 0); }).length,
@@ -144,7 +144,7 @@
     // Questions still open on any quest are listed on the right when nothing else is shown.
     function showOpen() {
       right.innerHTML = '';
-      var open = G.state.quests.filter(function (q) { return q.questions.length; });
+      var open = G.state.quests.filter(function (q) { return q.questions.length && G.isOpen(q); });
       if (!open.length) { right.appendChild(el('div', 'quiet', t('counterIdle'))); return; }
       showQuest(open[0]);
     }
