@@ -27,7 +27,11 @@ jobs:
           TAG="v$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+          # Only main or a version tag may release, whatever the trigger (a manual run can pick any branch).
+          if [ "$GITHUB_REF_TYPE" = "branch" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "Releases only come from main or a v* tag, not $GITHUB_REF_NAME; nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
             test "$GITHUB_REF_NAME" = "$TAG" || { echo "Tag $GITHUB_REF_NAME doesn't match package.json ($TAG)"; exit 1; }
             echo "go=true" >> "$GITHUB_OUTPUT"
           elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
