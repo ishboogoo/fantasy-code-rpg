@@ -305,9 +305,10 @@
     if (b.awaitingYou.length) w.appendChild(el('div', 'gold', t('onlyYou') + ' ' + b.awaitingYou.length));
     if (b.notes) { var n = el('div', 'quiet'); n.style.fontSize = '13px'; n.style.lineHeight = '18px'; n.textContent = b.notes; w.appendChild(n); }
     w.appendChild(el('div', '', t('vaultExplain')));
+    var why = el('textarea'); why.rows = 2; why.placeholder = t('whyUndo'); why.setAttribute('aria-label', t('whyUndo')); w.appendChild(why);
     G.menu(w, [
       { label: t('keep'), action: function () { G.cmd('keep', { id: b.id }).then(function (r) { G.toast(r.message); G.go('vault'); }); } },
-      { label: t('undo'), action: function () { G.cmd('undo', { id: b.id }).then(function (r) { G.toast(r.message); G.go('vault'); }); } },
+      { label: t('undo'), action: function () { G.cmd('undo', { id: b.id, why: why.value }).then(function (r) { G.toast(r.message); G.go('vault'); }); } },
       { label: t('later'), action: function () { G.go('town'); } },
     ], { row: true });
   };
@@ -389,7 +390,7 @@
   S.library = function () {
     var a = G.win(12, 12, 560, 300, 'scroll'); a.appendChild(el('div', 'h1', t('lore')));
     if (!G.state.lore.length) a.appendChild(el('div', 'quiet', t('noLore')));
-    G.state.lore.forEach(function (l) { a.appendChild(el('div', '', '• ' + l)); });
+    G.state.lore.forEach(function (l) { a.appendChild(el('div', /^House rule:/.test(l) ? 'gold' : /\(lesson from /.test(l) ? 'label' : '', '• ' + l)); });
     var b = G.win(12, 324, 560, 312, 'scroll'); b.appendChild(el('div', 'h1', t('recent')));
     G.state.battles.slice().reverse().slice(0, 12).forEach(function (x) {
       var q = G.quest(x.quest); b.appendChild(el('div', x.outcome === 'victory' ? 'gold' : '', x.outcome.toUpperCase() + ' · ' + (q ? q.name : x.quest) + (x.review ? ' · ' + x.review : '')));
@@ -430,6 +431,8 @@
       function (v) { G.cmd('settings', { language: v }).then(function () { G.go('settings', params); }); });
     row(t('playStyle'), [{ label: t('story'), value: 'story' }, { label: t('adventurer'), value: 'adventurer' }, { label: t('tactician'), value: 'tactician' }], st.playStyle,
       function (v) { G.cmd('settings', { playStyle: v }).then(function () { G.go('settings', params); }); }, t(st.playStyle + 'Help'));
+    var seats = [{ label: t('none'), value: '' }].concat(G.state.party.map(function (c) { return { label: c.name, value: c.id }; }));
+    row(t('seerSeat'), seats, st.seer || '', function (v) { G.cmd('settings', { seer: v }).then(function () { G.go('settings', params); }); }, t('seerHelp'));
     row(t('windowStyle'), [{ label: t('code'), value: 'code' }, { label: t('classic'), value: 'classic' }], G.pref('window') || 'code',
       function (v) { G.pref('window', v); G.applyPrefs(); G.go('settings', params); });
     row(t('reduceMotion'), [{ label: t('on'), value: 'on' }, { label: t('off'), value: 'off' }], G.pref('reduce') || 'off',

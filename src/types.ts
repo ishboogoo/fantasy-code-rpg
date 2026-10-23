@@ -133,6 +133,8 @@ export interface Settings {
   language?: "en" | "ja";
   /** How long a hero waits for your answer in Wait mode before taking "no" for an answer. Default 300 seconds. */
   askTimeoutSec?: number;
+  /** The hero who sits in the Council's third seat: a cheap, fast model asked three times, unanimous answers only. */
+  seer?: string;
 }
 
 export interface World {
@@ -142,6 +144,8 @@ export interface World {
   enemies: Enemy[];
   treasury: { gold: number; spent: number };
   battles: BattleReport[];
+  /** Times you chose a different lead than the Council suggested. The Ledger learns your preferences from them. */
+  choices?: Array<{ questType: QuestType; chosen: string; over: string; at: string }>;
 }
 
 /** What the harness lets an adapter do. Derived from tier, enforced by adapters. */

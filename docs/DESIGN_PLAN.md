@@ -139,7 +139,7 @@ Every decision is answered by the cheapest seat that is sure enough, written to 
 |---|---|---|---|---|
 | 1 Law | Risky actions, budget, loops, "it has a test: run it", quest type by keywords, lead when only one hero qualifies | Free | No rule applies | ✅ quest type, lead · 🔨 loop detection |
 | 2 Ledger | Lead by win record per quest type × hero (Thompson sampling) | Free | Too little data, or no clear best | ✅ |
-| 3 Seer | Quest type, clarity, risk, stuck; asked 3×, unanimous only | < 1 s, fractions of a cent (estimate) | Answers disagree, or under the bar | 🔨 adapter |
+| 3 Seer | Quest type, clarity, risk, stuck; asked 3×, unanimous only | < 1 s, fractions of a cent (estimate) | Answers disagree, or under the bar | ✅ quest type (any hero you seat) · 🔨 risk, stuck; outside services |
 | 4 Trial | Proof of victory; which of two solutions. Run checks first; then up to 3 judges from different companies, authors hidden, order rotated, unanimous vote per condition | Seconds–minutes, ~3¢ (estimate) | Split, tests vs judges | ✅ proof vote · 🔨 comparing two solutions |
 | 5 You | Irreversible actions, splits, unclear requests | Your time | — | ✅ (suggestion shown) |
 
@@ -171,9 +171,9 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 
 1. ✅ **Quest record upgrade.** Quest types, proof per condition, default budgets, "needs".
 2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. ✅ One rulebook enforced through hooks in Claude Code, Codex and Gemini CLI.
-3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. 🔨 A Seer adapter to confirm the Clerk's quest type.
-4. ✅ **Party recommendation** through the Council (Law + Ledger). 🔨 Learning from swaps.
+3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. ✅ The Seer (`savepoint seer <hero>`) confirms quest types with three unanimous votes.
+4. ✅ **Party recommendation** through the Council (Law + Ledger). ✅ Learning from the leads you pick.
 5. ✅ **Battle event stream** and the first browser screen: `savepoint play` shows the live battle (moves, save points, damage, verdict), the party, the Quest Board (Q) and the Treasure Vault (V) with Keep / Undo / Approve. `--demo` stages a simulated party.
 6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. ✅ "No proof, no victory" stop hook in all three CLIs.
-7. 🔨 **Debrief** lessons into the Chronicle.
+7. ✅ **Debrief**: lessons into the lore after every battle; your undo reasons become house rules.
 8. ✅ **Launch scenes in the browser**: Title, Guild Town, Guild Counter, Quest Board, War Room, Battlefield, Treasure Vault, Tavern, Inn, Library and Settings, in English and Japanese. ✅ The Decision window: a hero above its rank pauses and asks (allow once / deny / hand to another hero), from any scene or the command line.

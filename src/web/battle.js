@@ -80,7 +80,7 @@
         Object.keys(e.xp || {}).forEach(function (id) { var c = G.hero(id); if (c && e.xp[id]) say(c.name + ' +' + e.xp[id] + ' EXP', 'gold'); });
         (e.promotions || []).forEach(function (id) { var c = G.hero(id); flash(t('promoted', { who: c ? c.name : id })); });
         if (!e.replay && e.review === 'pending') setTimeout(function () { if (G.current() === 'battle') G.go('vault'); }, 2400);
-      } else if (e.type === 'say' && /✖|Treasure Vault|thrown away|Not a git/.test(e.text || '')) {
+      } else if (e.type === 'say' && /✖|Treasure Vault|thrown away|Not a git|📖|🤝/.test(e.text || '')) {
         say(e.text, 'quiet');
       }
     }, true);

@@ -10,6 +10,7 @@ import { battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
 import { Council } from "./council.ts";
 import { QUEST_TYPES, classifyByRules, proofOf, questTypeOf } from "./quests.ts";
 import { adventurerOffer, answer, needsApproval, request, setPlayStyle, settings, warRoom } from "./stages.ts";
+import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
 import { recommendParty, checkParty, type Role } from "./party.ts";
 import { newCharacter, recruit } from "./roster.ts";
 import { ADAPTERS } from "./adapters/index.ts";
@@ -46,7 +47,8 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
                      [--in-place]  run in your folder instead of a private copy (no undo)
   savepoint keep <battle-id>                   Treasure Vault: bring a battle's changes into your project
-  savepoint undo <battle-id>                   Treasure Vault: throw a battle's changes away (counts as a loss)
+  savepoint undo <battle-id> [--why "..."]      Treasure Vault: throw a battle's changes away (counts as a loss); your reason becomes a house rule
+  savepoint seer <hero> | --off                Seat a hero as the Seer: a cheap, fast model the Council asks three times
   savepoint council                            How each Council seat has decided, and how often it was right
   savepoint asks                               Heroes waiting for your answer (Wait mode)
   savepoint allow|deny <id> · handoff <id> <hero>  Answer them: allow once, deny, or hand the job to another hero
@@ -75,7 +77,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
-    port: { type: "string" }, demo: { type: "boolean" },
+    port: { type: "string" }, demo: { type: "boolean" }, why: { type: "string" }, off: { type: "boolean" },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
@@ -248,7 +250,12 @@ async function main(): Promise<void> {
       }
       if (!partyIds.length) throw new Error("Nobody in your guild can take this quest yet. Recruit or rest first.");
       const judge: JudgeSpec = j === "tests" ? { kind: "tests" } : j === "auto" ? { kind: "auto" } : { kind: "character", id: j };
-      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
+      // If you picked a different lead than the Council last suggested, the Ledger learns your preference.
+      if (foe && values.party) {
+        const suggested = lastLeadSuggestion(council.decisions(), foe.id);
+        if (suggested && partyIds[0] && suggested !== partyIds[0]) recordChoice(world, questTypeOf(foe), partyIds[0], suggested);
+      }
+      const r = await battle({ world, store, enemyId, partyIds, judge, cwd, council, debrief: true, isolate: values["in-place"] ? false : undefined, onEvent: (l) => console.log(l) });
       save();
       console.log(reportScreen(world, r));
       return;
@@ -273,7 +280,8 @@ async function main(): Promise<void> {
     }
     case "undo": {
       if (!rest[0]) throw new Error("Usage: undo <battle-id>");
-      console.log(`🗑 ${await undoBattle(world, store, rest[0], cwd, council)}`);
+      console.log(`🗑 ${await undoBattle(world, store, rest[0], cwd, council, values.why)}`);
+      if (values.why) console.log("📜 Your reason is now a house rule every hero reads.");
       save();
       return;
     }
@@ -283,6 +291,14 @@ async function main(): Promise<void> {
       const lines = rows.map((r) => `${r.kind.padEnd(11)} ${r.seat.padEnd(7)} decided ${String(r.decided).padStart(3)} · ` +
         (r.judged ? `right ${r.right}/${r.judged} (${Math.round((100 * r.right) / r.judged)}%)` : "no results yet"));
       console.log(box("THE COUNCIL", ["kind        seat    record", ...lines]));
+      return;
+    }
+    case "seer": {
+      if (values.off) { delete settings(world).seer; save(); console.log("The Seer's seat is empty."); return; }
+      const h = world.party.find((c) => c.id === rest[0] || c.name.toLowerCase() === (rest[0] ?? "").toLowerCase());
+      if (!h) throw new Error("Usage: seer <hero> (pick your cheapest, fastest hero) or seer --off");
+      settings(world).seer = h.id; save();
+      console.log(`🔮 ${h.name} takes the Seer's seat. The Council asks the Seer three times and trusts only a unanimous answer.`);
       return;
     }
     case "asks": {

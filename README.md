@@ -73,6 +73,7 @@ savepoint keep <battle-id>        # Treasure Vault: bring the changes into your 
 savepoint undo <battle-id>        # …or throw them away (counts as a loss for the party)
 savepoint council                 # how each Council seat has decided, and how often it was right
 savepoint asks                    # heroes paused, asking your permission (or answer in the browser)
+savepoint seer <hero>             # seat a cheap, fast hero as the Council's Seer
 ```
 
 Every battle runs in **its own copy of your project** (a git worktree), with a save point after each hero's turn. Nothing touches your folder until you choose Keep.
@@ -103,7 +104,7 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`savepoint play`). Wait mode (heroes ask before going beyond their rank). 49 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`savepoint play`). Wait mode (heroes ask before going beyond their rank). the Seer, lessons and house rules in the Chronicle, and suggestions that learn from your picks. 53 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild

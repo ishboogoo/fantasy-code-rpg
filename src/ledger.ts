@@ -22,5 +22,33 @@ export function ledgerRecords(world: World, questType: QuestType): Map<string, R
       out.set(m.characterId, r);
     }
   }
+  // Your preferences count a little: each time you picked someone else as lead, the hero you chose gains half a
+  // win and the one you passed over a quarter of a loss, capped so results always outweigh preferences.
+  const bonus = new Map<string, { s: number; f: number }>();
+  for (const c of world.choices ?? []) {
+    if (c.questType !== questType) continue;
+    const a = bonus.get(c.chosen) ?? { s: 0, f: 0 }; a.s = Math.min(PREFERENCE_CAP, a.s + 0.5); bonus.set(c.chosen, a);
+    const b = bonus.get(c.over) ?? { s: 0, f: 0 }; b.f = Math.min(PREFERENCE_CAP, b.f + 0.25); bonus.set(c.over, b);
+  }
+  for (const [id, b] of bonus) {
+    const r = out.get(id) ?? { successes: 0, failures: 0 };
+    r.successes += b.s; r.failures += b.f; out.set(id, r);
+  }
   return out;
+}
+
+export const PREFERENCE_CAP = 3;
+
+/** Remember that you chose a different lead than the Council suggested for this kind of quest. */
+export function recordChoice(world: World, questType: QuestType, chosen: string, over: string): void {
+  if (!chosen || !over || chosen === over) return;
+  (world.choices ??= []).push({ questType, chosen, over, at: new Date().toISOString() });
+  if (world.choices.length > 200) world.choices.splice(0, world.choices.length - 200);
+}
+
+/** The lead the Council last offered for a quest (its answer, or its suggestion when it went to you). */
+export function lastLeadSuggestion(decisions: Array<{ kind: string; questId?: string; answer: unknown; suggestion?: unknown }>, questId: string): string | undefined {
+  const d = decisions.filter((x) => x.kind === "party-lead" && x.questId === questId).at(-1);
+  const v = d ? (d.answer ?? d.suggestion) : undefined;
+  return typeof v === "string" ? v : undefined;
 }

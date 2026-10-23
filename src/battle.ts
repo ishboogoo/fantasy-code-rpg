@@ -12,7 +12,7 @@ import type { Store } from "./store.ts";
 import type { BattleReport, Character, Enemy, InstanceInfo, Outcome, Verdict, World } from "./types.ts";
 import { canIsolate, createInstance, discard, keep, savePoint, changes } from "./instance.ts";
 import { proofOf, questTypeOf } from "./quests.ts";
-import { lastJson } from "./stages.ts";
+import { debrief, lastJson } from "./stages.ts";
 import { vendor } from "./party.ts";
 import type { Council } from "./council.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
@@ -40,6 +40,8 @@ export interface BattleOptions {
   isolate?: boolean;
   /** When given, the Debrief marks the Council's decisions for this quest right or wrong. */
   council?: Council;
+  /** Ask a hero who didn't fight to write the quest's lessons into the Chronicle afterwards. */
+  debrief?: boolean;
 }
 
 export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
@@ -320,6 +322,11 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     }
   }
 
+  if (opts.debrief && verdict.outcome !== "critical") {
+    const lessons = await debrief(world, store, enemy, verdict.outcome, party.map((c) => c.id), cwd);
+    for (const l of lessons) say(`  📖 Lesson: ${l}`);
+  }
+
   const report: BattleReport = {
     id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review,
     newlyMet: enemy.criteria.filter((k) => k.met && !metBefore.has(k.id)).map((k) => k.id),
@@ -363,7 +370,7 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
  * Undo the battle's changes. Your verdict outranks the judge's: an undone victory counts as a
  * loss for everyone in the party, and the Council's choice of lead is marked wrong.
  */
-export async function undoBattle(world: World, store: Store, battleId: string, cwd: string, council?: Council): Promise<string> {
+export async function undoBattle(world: World, store: Store, battleId: string, cwd: string, council?: Council, why?: string): Promise<string> {
   const b = pendingBattle(world, battleId);
   if (b.instance?.savePoints.length) await discard(cwd, b.instance);
   b.review = "undone";
@@ -386,7 +393,9 @@ export async function undoBattle(world: World, store: Store, battleId: string, c
     const d = council.decisions().filter((x) => x.kind === "party-lead" && x.questId === b.enemyId).at(-1);
     if (d) council.markOutcome(d.id, "wrong", `undone at the Treasure Vault (battle ${battleId})`);
   }
-  store.log({ type: "review", battle: battleId, decision: "undone" });
+  store.log({ type: "review", battle: battleId, decision: "undone", why });
+  // Your reason becomes a house rule every hero reads from now on.
+  if (why?.trim()) store.addLore(`House rule: ${why.replace(/\s+/g, " ").trim().slice(0, 300)} (from you, after undoing ${b.enemyId})`);
   return b.instance?.savePoints.length
     ? "Undone: the changes were thrown away and the quest is open again. It counts as a loss for the party."
     : "Rejected: the quest is open again, and it counts as a loss for the party.";

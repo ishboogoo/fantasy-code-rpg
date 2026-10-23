@@ -17,6 +17,7 @@ import { JOB_ROLE, permissionsFor, recordFor, reliability, title } from "./rules
 import { answer, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { checkParty, recommendParty, vendor, type Role } from "./party.ts";
 import { recruit } from "./roster.ts";
+import { lastLeadSuggestion, recordChoice } from "./ledger.ts";
 import { runProcess } from "./adapters/adapter.ts";
 import { refillMp } from "./economy.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
@@ -139,7 +140,7 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         return { message: decision === "allow" ? "Allowed, just this once." : decision === "deny" ? "Denied." : "Handed over." };
       }
       case "keep": return { message: await change((w) => keepBattle(w, store, id, projectDir)) };
-      case "undo": return { message: await change((w) => undoBattle(w, store, id, projectDir, council)) };
+      case "undo": return { message: await change((w) => undoBattle(w, store, id, projectDir, council, b.why ? String(b.why).slice(0, 300) : undefined)) };
       case "approve": return change(async (w) => {
         const q = quest(w);
         if (q.questions?.length) throw new Error("Answer its questions first.");
@@ -179,8 +180,10 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         fighting = id;
         const w = store.load();
         const partyIds = ids.length ? ids : recommendParty(w, quest(w), 3, council).members.filter((m) => m.role !== "judge").map((m) => m.id);
+        const suggested = lastLeadSuggestion(council.decisions(), id);
+        if (ids.length && suggested && suggested !== ids[0]) { recordChoice(w, questTypeOf(quest(w)), ids[0], suggested); store.save(w); }
         // The battle runs on; its progress arrives over the event stream.
-        void battle({ world: w, store, enemyId: id, partyIds, judge: { kind: "auto" }, cwd: projectDir, council })
+        void battle({ world: w, store, enemyId: id, partyIds, judge: { kind: "auto" }, cwd: projectDir, council, debrief: true })
           .then(() => store.save(w))
           .catch((e: unknown) => store.event({ type: "say", text: `✖ ${e instanceof Error ? e.message : String(e)}` }))
           .finally(() => { fighting = null; store.event({ type: "idle" }); });
@@ -194,6 +197,11 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
       case "settings": return change(async (w) => {
         if (b.playStyle) setPlayStyle(w, String(b.playStyle));
         if (b.language === "en" || b.language === "ja") settings(w).language = b.language;
+        if (b.seer !== undefined) {
+          if (!b.seer) delete settings(w).seer;
+          else if (w.party.some((c) => c.id === b.seer)) settings(w).seer = String(b.seer);
+          else throw new Error("No such hero.");
+        }
         return { message: "Saved.", settings: settings(w) };
       });
       default: throw new Error("Unknown command.");

@@ -68,6 +68,14 @@ export const mock: Adapter = {
       const extra = verdict === "unclear" ? "\nQUESTION: Which page do you mean?" : verdict === "split" ? "\nSPLIT: first part\nSPLIT: second part" : "";
       return { output: `Scouting report: the relevant code is in src/.${extra}\nVERDICT: ${verdict}`, costGold, costMp: 0, turns: 1 };
     }
+    if (req.prompt.startsWith("[SEER]")) {
+      const material = req.prompt.split("Material")[1] ?? "";
+      const word = /crash|bug|fail|broken/i.test(material) ? "fix" : /guide|docs?|readme/i.test(material) ? "write" : /which|should we|compare/i.test(material) ? "explore" : "build";
+      return { output: word, costGold, costMp: 0, turns: 1 };
+    }
+    if (req.prompt.startsWith("[DEBRIEF]")) {
+      return { output: "LESSON: Run the whole test suite before claiming a fix; the login tests live in test/login.test.ts.", costGold, costMp: 0, turns: 1 };
+    }
     if (req.prompt.startsWith("[PLAN]")) {
       return { output: "1. Read the code.\n2. Make the change.\n3. Prove each condition.", costGold, costMp: 0, turns: 1 };
     }
