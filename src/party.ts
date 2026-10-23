@@ -19,7 +19,8 @@ export interface PartyPlan {
 
 const API: AdapterKind[] = ["anthropic-api", "openai-compatible"];
 const need = (e: Enemy): keyof Permissions => e.needs ?? QUEST_TYPES[questTypeOf(e)].needs;
-const vendor = (a: AdapterKind): string =>
+/** Which AI company is behind an adapter, so judges can come from a different one. */
+export const vendor = (a: AdapterKind): string =>
   a === "claude-code" || a === "anthropic-api" ? "anthropic" : a === "codex" || a === "openai-compatible" ? "openai" : a === "gemini-cli" ? "google" : a;
 
 function available(c: Character): boolean {
@@ -37,6 +38,10 @@ export function fit(c: Character, e: Enemy, role: Role, world?: World): { score:
   if (rel >= 0.7) reasons.push(`Reliable: wins most quests (${Math.round(rel * 100)}% trust)`);
   if (WEAKNESS[e.kind].includes(c.job) && WEAKNESS[e.kind].length < 5) { score += 2; reasons.push(`${JOB_TITLES[c.job][0]}s are strong against this kind of monster`); }
   const perms = permissionsFor(c.tier);
+  if (role === "lead" && QUEST_TYPES[questTypeOf(e)].leads.includes(c.job)) {
+    score += 1.5;
+    reasons.push(`${JOB_TITLES[c.job][0]}s are a natural fit to lead ${QUEST_TYPES[questTypeOf(e)].label} quests`);
+  }
   if (role === "lead") {
     if (perms[need(e)]) { score += 3; } else { score -= 10; reasons.push(`Not yet trusted to ${need(e) === "exec" ? "run commands" : "change files"}`); }
     if (perms.maxGoldPerBattle >= (e.budget.gold ?? 0)) score += 0.5;

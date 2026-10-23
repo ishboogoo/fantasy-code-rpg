@@ -63,6 +63,15 @@ export interface Enemy {
   /** What the quest needs a hero to be allowed to do. Defaults to "write". Drives party recommendations. */
   needs?: "read" | "write" | "exec";
   status: "lurking" | "engaged" | "defeated" | "fled";
+  /** The request in your own words, as given at the Guild Counter. */
+  request?: string;
+  /** Questions the Clerk or a Scout needs answered before anyone fights (a Sphinx blocks the road). */
+  questions?: string[];
+  /** You approved the victory conditions (and the plan, once there is one). Story mode approves automatically. */
+  approved?: boolean;
+  /** The War Room's read-only scouting report and plan, handed to the party. */
+  scouting?: string;
+  plan?: string;
 }
 
 export type Outcome = "victory" | "retreat" | "defeat" | "critical";
@@ -96,6 +105,8 @@ export interface BattleReport {
   review?: "pending" | "kept" | "undone" | "nothing";
   /** Victory conditions this battle newly met, so an undo can reopen exactly those. */
   newlyMet?: string[];
+  /** Conditions only you can prove; they are met when you Keep the result. */
+  awaitingYou?: string[];
   party: Array<{ characterId: string; share: number }>;
   costGold: number;
   costMp: number;
@@ -107,8 +118,18 @@ export interface BattleReport {
   at: string;
 }
 
+export type PlayStyle = "story" | "adventurer" | "tactician";
+
+export interface Settings {
+  /** How much of the loop you see and approve. New players start in Story. */
+  playStyle: PlayStyle;
+  /** Set once the game has offered to move you from Story to Adventurer, so it only asks once. */
+  offeredAdventurer?: boolean;
+}
+
 export interface World {
   version: 1;
+  settings?: Settings;
   party: Character[];
   enemies: Enemy[];
   treasury: { gold: number; spent: number };

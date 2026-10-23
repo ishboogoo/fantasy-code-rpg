@@ -28,11 +28,33 @@ export const mock: Adapter = {
     const turns = 1 + Math.floor(rand() * req.maxTurns * 0.6);
     const costGold = +(0.01 * turns * (0.5 + rand())).toFixed(4);
 
-    // Judging request: confirm the DONE lines found in the scroll.
+    // Judging request: one verdict per condition, confirming the DONE lines found in the evidence.
     if (req.prompt.includes("[JUDGE]")) {
-      const done = [...req.prompt.matchAll(/^DONE: (\S+)/gm)].map((m) => m[1]);
+      const done = new Set([...req.prompt.matchAll(/^DONE: (\S+)/gm)].map((m) => m[1]));
+      const ids = [...req.prompt.matchAll(/^\* (\S+):/gm)].map((m) => m[1]);
+      const verdicts = Object.fromEntries(ids.map((id) => [id, done.has(id)]));
       const quality = Math.min(1, Math.max(0, skill * 0.6 + rand() * 0.4));
-      return { output: JSON.stringify({ met: [...new Set(done)], quality, notes: "Mock review." }), costGold, costMp: 0, turns: 1 };
+      return { output: JSON.stringify({ verdicts, quality, notes: "Mock review." }), costGold, costMp: 0, turns: 1 };
+    }
+
+    // Desk jobs: the Clerk, the Scout and the Planner.
+    if (req.prompt.startsWith("[CLERK]")) {
+      const text = req.prompt.match(/^Request: (.*)$/m)?.[1] ?? "";
+      const words = text.split(/\s+/).filter(Boolean);
+      const reply = {
+        name: text.slice(0, 40), questType: /fix|bug|crash/i.test(text) ? "fix" : "build", monster: "goblin", level: 2, goldBudget: 1,
+        conditions: [{ id: "works", description: `It works: ${text}`, proof: "judge" }, { id: "tests", description: "Existing tests still pass", proof: "command", check: "true" }],
+        questions: words.length < 4 ? ["What exactly should happen when this is done?"] : [],
+      };
+      return { output: JSON.stringify(reply), costGold, costMp: 0, turns: 1 };
+    }
+    if (req.prompt.startsWith("[SCOUT]")) {
+      const verdict = /\bunclear\b/i.test(req.prompt.split("Victory conditions:")[0]) ? "unclear" : /\band also\b/i.test(req.prompt) ? "split" : "proceed";
+      const extra = verdict === "unclear" ? "\nQUESTION: Which page do you mean?" : verdict === "split" ? "\nSPLIT: first part\nSPLIT: second part" : "";
+      return { output: `Scouting report: the relevant code is in src/.${extra}\nVERDICT: ${verdict}`, costGold, costMp: 0, turns: 1 };
+    }
+    if (req.prompt.startsWith("[PLAN]")) {
+      return { output: "1. Read the code.\n2. Make the change.\n3. Prove each condition.", costGold, costMp: 0, turns: 1 };
     }
 
     // Occasional overreach, more likely for low-skill characters.

@@ -52,6 +52,7 @@ flowchart LR
 | `src/quests.ts` | The six quest types and their defaults; the Law's keyword classifier. | no — pure |
 | `src/council.ts` | The Council: decision cascade (Law → Ledger → Seer → Trial → You), decision records and outcomes, Thompson-sampling maths. | `chronicle/decisions.jsonl`, `outcomes.jsonl` |
 | `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
+| `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
 | `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |
 | `src/battle.ts` | Instance → turns with save points → judge → rewards → Treasure Vault → Debrief. | via the above |
@@ -104,7 +105,9 @@ Folders that aren't git repositories with a commit fall back to running in place
 
 ## Judging
 
-`judgeBattle` combines, in order:
+The current judge (in `battle.ts`): run every check first; then `chooseJudges()` picks up to three judges, one per AI company before doubling up, never anyone who fought. `anonymize()` hides names, ids, adapters and models from the evidence (scroll + diff). Each judge sees the conditions in a rotated order and returns a verdict per condition; each condition is a `proof` decision for the Council that needs a unanimous vote, and a split goes to you. Conditions with `proof: "human"` are left for the Treasure Vault, where Keep confirms them.
+
+The original description, kept for history:
 
 1. **Checks** — each criterion can carry a shell command; exit 0 means met.
 2. **A judge character** — for criteria without checks. Must not be in the fighting party (enforced).

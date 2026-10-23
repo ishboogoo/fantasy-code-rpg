@@ -11,7 +11,9 @@ import {
 import type { Store } from "./store.ts";
 import type { BattleReport, Character, Enemy, InstanceInfo, Outcome, Verdict, World } from "./types.ts";
 import { canIsolate, createInstance, discard, keep, savePoint, changes } from "./instance.ts";
-import { questTypeOf } from "./quests.ts";
+import { proofOf, questTypeOf } from "./quests.ts";
+import { lastJson } from "./stages.ts";
+import { vendor } from "./party.ts";
 import type { Council } from "./council.ts";
 
 export type JudgeSpec = { kind: "tests" } | { kind: "character"; id: string } | { kind: "auto" };
@@ -46,6 +48,8 @@ export function buildPrompt(c: Character, enemy: Enemy, store: Store): string {
     "## Acceptance criteria",
     ...enemy.criteria.map((k) => `- [${k.id}] ${k.description}${k.met ? " (already met)" : ""}`),
     "",
+    ...(enemy.plan ? ["## The plan (approved in the War Room; follow it unless it is clearly wrong, and say so if it is)", enemy.plan, ""] : []),
+    ...(enemy.scouting ? ["## Scouting report", enemy.scouting, ""] : []),
     "## Project lore (shared by the whole party)",
     store.lore().trim() || "(none yet)",
     "",
@@ -67,54 +71,108 @@ async function runChecks(enemy: Enemy, cwd: string): Promise<Set<string>> {
   return met;
 }
 
-async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Set<string>, cwd: string): Promise<Verdict & { costGold: number }> {
-  const { world, store, judge } = opts;
-  const met = await runChecks(enemy, cwd);
-  const unchecked = enemy.criteria.filter((k) => !k.check);
-  let quality = 0.5;
-  let notes = met.size ? `Tests confirmed: ${[...met].join(", ")}.` : "";
-  let judgedBy = "tests";
-  let costGold = 0;
-
-  const judgeId = judge.kind === "character" ? judge.id
-    : judge.kind === "auto" ? world.party.find((c) => c.job === "cleric" && !fighters.has(c.id))?.id
-    : undefined;
-
-  if (judgeId && unchecked.length) {
-    if (fighters.has(judgeId)) throw new Error("Anti-cheat: a character can't judge a battle it fought in.");
-    const j = world.party.find((c) => c.id === judgeId);
-    if (!j) throw new Error(`Judge ${judgeId} isn't in the party roster.`);
-    const prompt = [
-      "[JUDGE] You are an impartial reviewer. Do not trust claims; verify against the work.",
-      `Quest: ${enemy.name}\n${enemy.description}`,
-      "Criteria:", ...unchecked.map((k) => `* ${k.id}: ${k.description}`),
-      "Scroll:", store.scroll(enemy.id),
-      'Reply with JSON only: {"met": [criterion ids], "quality": 0..1, "notes": "..."}',
-    ].join("\n");
-    const r = await ADAPTERS[j.adapter].run({
-      character: j, prompt, cwd, permissions: { ...permissionsFor(Math.min(j.tier, 1) as 0 | 1), write: false },
-      maxTurns: 5, goldLimit: 0.5,
-    });
-    costGold += r.costGold;
-    spend(world, j, r.costGold, r.costMp);
-    try {
-      const parsed = JSON.parse(r.output.slice(r.output.indexOf("{"), r.output.lastIndexOf("}") + 1)) as
-        { met?: string[]; quality?: number; notes?: string };
-      for (const id of parsed.met ?? []) if (unchecked.some((k) => k.id === id)) met.add(id);
-      quality = typeof parsed.quality === "number" ? parsed.quality : quality;
-      notes = [notes, parsed.notes].filter(Boolean).join(" ");
-      judgedBy = met.size && enemy.criteria.some((k) => k.check) ? `tests+${j.id}` : j.id;
-    } catch {
-      notes += ` Judge ${j.name} returned unreadable output.`;
+/** Hide who did the work: judges favour writing that sounds like their own company's. */
+export function anonymize(text: string, party: Character[]): string {
+  let out = text;
+  party.forEach((c, i) => {
+    const alias = `Worker ${String.fromCharCode(65 + i)}`;
+    for (const word of [c.name, c.id, c.adapter, c.model ?? ""].filter((w) => w && w.length > 1)) {
+      out = out.replace(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), alias);
     }
-  } else if (unchecked.length) {
-    notes += ` ${unchecked.length} criteria have no check and no judge, so they count as unmet.`;
+  });
+  return out;
+}
+
+/**
+ * Choose up to three judges: never anyone who fought, preferably from a different AI company than
+ * every fighter, then Clerics, then the most trusted.
+ */
+export function chooseJudges(world: World, fighters: Character[], spec: JudgeSpec, max = 3): Character[] {
+  if (spec.kind === "tests") return [];
+  const fighterIds = new Set(fighters.map((c) => c.id));
+  if (spec.kind === "character") {
+    if (fighterIds.has(spec.id)) throw new Error("Anti-cheat: a character can't judge a battle it fought in.");
+    const j = world.party.find((c) => c.id === spec.id);
+    if (!j) throw new Error(`Judge ${spec.id} isn't in the party roster.`);
+    return [j];
+  }
+  const fighterVendors = new Set(fighters.map((c) => vendor(c.adapter)));
+  const pool = world.party.filter((c) => !fighterIds.has(c.id) && !c.status.includes("resting") && c.adapter !== "shell");
+  const score = (c: Character) => (fighterVendors.has(vendor(c.adapter)) ? 0 : 100) + (c.job === "cleric" ? 10 : 0) + c.tier;
+  const ranked = pool.sort((a, b) => score(b) - score(a));
+  // One judge per company first, so the vote is genuinely independent.
+  const picked: Character[] = [], vendors = new Set<string>();
+  for (const c of ranked) if (picked.length < max && !vendors.has(vendor(c.adapter))) { picked.push(c); vendors.add(vendor(c.adapter)); }
+  for (const c of ranked) if (picked.length < max && !picked.includes(c)) picked.push(c);
+  return picked;
+}
+
+async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Character[], cwd: string, inst?: InstanceInfo): Promise<Verdict & { costGold: number; awaitingYou: string[] }> {
+  const { world, store, judge, council } = opts;
+  // 1. Run it: checks decide whatever they can, before any judge is asked.
+  const met = await runChecks(enemy, cwd);
+  const awaitingYou = enemy.criteria.filter((k) => !k.met && proofOf(k) === "human").map((k) => k.id);
+  const forJudges = enemy.criteria.filter((k) => !k.met && !k.check && proofOf(k) === "judge");
+  let notes = met.size ? `Tests confirmed: ${[...met].join(", ")}.` : "";
+  const judgedBy: string[] = enemy.criteria.some((k) => k.check) ? ["tests"] : [];
+  let costGold = 0;
+  const qualities: number[] = [];
+
+  // 2. Then vote: independent judges, authors hidden, each condition scored on its own.
+  const judges = forJudges.length ? chooseJudges(world, fighters, judge) : [];
+  if (forJudges.length && !judges.length) notes += ` ${forJudges.length} condition(s) need a judge and none is available, so they count as unmet.`;
+  if (judges.length) {
+    const diff = inst ? (await runProcess("git", ["diff", `${inst.base}..HEAD`], { cwd, timeoutMs: 60_000 })).stdout : "";
+    const evidence = anonymize([store.scroll(enemy.id), diff ? `\n## Changes\n\n${diff.slice(0, 20_000)}` : ""].join(""), fighters);
+    const votes = new Map<string, boolean[]>(forJudges.map((k) => [k.id, []]));
+    for (const [i, j] of judges.entries()) {
+      // Each judge sees the conditions in a different order, so position can't sway the vote.
+      const order = forJudges.map((k, n) => forJudges[(n + i) % forJudges.length]);
+      const prompt = [
+        "[JUDGE] You are an impartial reviewer. Do not trust claims; verify them against the work and the changes.",
+        "You don't know who did this work. Judge each condition on its own.",
+        `Quest: ${enemy.name}\n${enemy.description}`,
+        "Conditions:", ...order.map((k) => `* ${k.id}: ${k.description}`),
+        "Evidence:", evidence,
+        'Reply with JSON only: {"verdicts": {"<condition id>": true or false}, "quality": 0..1, "notes": "..."}',
+      ].join("\n");
+      const r = await ADAPTERS[j.adapter].run({
+        character: j, prompt, cwd, permissions: { ...permissionsFor(Math.min(j.tier, 1) as 0 | 1), write: false },
+        maxTurns: 5, goldLimit: 0.5,
+      });
+      costGold += r.costGold;
+      spend(world, j, r.costGold, r.costMp);
+      judgedBy.push(j.id);
+      const parsed = lastJson<{ verdicts?: Record<string, boolean>; met?: string[]; quality?: number; notes?: string }>(r.output);
+      if (!parsed) { notes += ` Judge ${j.name} returned unreadable output.`; continue; }
+      for (const k of forJudges) {
+        const v = parsed.verdicts ? parsed.verdicts[k.id] : parsed.met?.includes(k.id);
+        if (typeof v === "boolean") votes.get(k.id)!.push(v);
+      }
+      if (typeof parsed.quality === "number") qualities.push(parsed.quality);
+      if (parsed.notes) notes += ` ${parsed.notes}`;
+    }
+    // 3. Each condition is a Council decision: only a unanimous vote counts; a split goes to you.
+    for (const k of forJudges) {
+      const v = votes.get(k.id)!;
+      const yes = v.filter(Boolean).length;
+      const seat = () => v.length ? { answer: yes * 2 >= v.length, confidence: Math.max(yes, v.length - yes) / v.length,
+        reasons: [`${yes} of ${v.length} judge(s) say it is met`] } : null;
+      const d = council ? council.decide<boolean>("proof", `Is "${k.description}" proven?`, { trial: seat }, enemy.id)
+        : (() => { const a = seat(); return { answer: a && a.confidence >= 0.95 ? a.answer : null, seat: a && a.confidence >= 0.95 ? "trial" : "you" }; })();
+      if (d.answer === true) met.add(k.id);
+      else if (d.answer === null && v.length) notes += ` Judges split on ${k.id}; check it yourself at the Treasure Vault.`;
+    }
   }
 
   for (const k of enemy.criteria) if (met.has(k.id)) k.met = true;
-  const correctness = enemy.criteria.length ? enemy.criteria.filter((k) => k.met).length / enemy.criteria.length : 0;
+  // Conditions only you can prove don't count against the party; they're settled when you Keep.
+  const scored = enemy.criteria.filter((k) => !awaitingYou.includes(k.id));
+  const correctness = scored.length ? scored.filter((k) => k.met).length / scored.length : awaitingYou.length ? 1 : 0;
   const outcome: Outcome = correctness >= 1 ? "victory" : correctness > 0 ? "retreat" : "defeat";
-  return { outcome, correctness, quality, notes: notes.trim(), judgedBy, costGold };
+  if (awaitingYou.length) notes += ` Waiting for you to confirm: ${awaitingYou.join(", ")}.`;
+  const quality = qualities.length ? qualities.reduce((a, b) => a + b, 0) / qualities.length : 0.5;
+  return { outcome, correctness, quality, notes: notes.trim(), judgedBy: judgedBy.join("+") || "nobody", costGold, awaitingYou };
 }
 
 export async function battle(opts: BattleOptions): Promise<BattleReport> {
@@ -123,6 +181,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const enemy = world.enemies.find((e) => e.id === opts.enemyId);
   if (!enemy) throw new Error(`No enemy with id ${opts.enemyId}`);
   if (enemy.status === "defeated") throw new Error(`${enemy.name} is already defeated.`);
+  if (enemy.questions?.length) throw new Error(`A Sphinx blocks the road: ${enemy.name} has open questions. Answer them first (savepoint answer ${enemy.id} "...").`);
+  if (enemy.approved === false) throw new Error(`${enemy.name} is waiting for your approval of its victory conditions${enemy.plan ? " and plan" : ""}: savepoint approve ${enemy.id}`);
   const party = opts.partyIds.map((id) => {
     const c = world.party.find((x) => x.id === id || x.name.toLowerCase() === id.toLowerCase());
     if (!c) throw new Error(`No character ${id}`);
@@ -171,8 +231,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     if (r.error) say(`  ✖ ${r.error}`);
   }
 
-  const fighters = new Set(party.map((c) => c.id));
-  const verdict = await judgeBattle(opts, enemy, fighters, workdir);
+  const verdict = await judgeBattle(opts, enemy, party, workdir, inst);
   const judgeGold = verdict.costGold; // the referee's fee doesn't count against the party's budget
 
   if (!critical && enemy.guard) {
@@ -203,18 +262,23 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     if (change === "cursed") { curses.push(c.id); say(`  🩸 ${c.name} is cursed and falls to ${title(c)} (Tier ${c.tier}).`); }
   }
 
-  enemy.status = verdict.outcome === "victory" ? "defeated" : "lurking";
+  // A victory still waiting for your confirmation stays open until you Keep it.
+  enemy.status = verdict.outcome === "victory" && !verdict.awaitingYou.length ? "defeated" : "lurking";
 
   // Treasure Vault: changes wait for you. Unsafe work (a critical failure) is thrown away at once.
   let review: BattleReport["review"] = undefined;
   if (inst) {
-    if (!inst.savePoints.length) { await discard(cwd, inst); review = "nothing"; }
+    if (!inst.savePoints.length && verdict.awaitingYou.length) { await discard(cwd, inst); inst.savePoints = []; review = "pending"; say(`  📦 Treasure Vault: no files changed, but ${verdict.awaitingYou.length} condition(s) wait for you. Keep or undo: savepoint keep ${battleId} · savepoint undo ${battleId}`); }
+    else if (!inst.savePoints.length) { await discard(cwd, inst); review = "nothing"; }
     else if (verdict.outcome === "critical") { await discard(cwd, inst); review = "undone"; say("  🗑 The party's changes were thrown away (critical failure). Your project is untouched."); }
     else {
       review = "pending";
       const ch = await changes(inst);
       say(`  📦 Treasure Vault: ${ch.files.length} file(s) changed${ch.stat ? ` (${ch.stat})` : ""}. Keep or undo: savepoint keep ${battleId} · savepoint undo ${battleId}`);
     }
+  } else if (verdict.awaitingYou.length && verdict.outcome !== "critical") {
+    review = "pending";
+    say(`  📦 ${verdict.awaitingYou.length} condition(s) wait for you: savepoint keep ${battleId} to confirm, savepoint undo ${battleId} to reject.`);
   }
 
   // Debrief: the Council learns whether its choice of lead was right.
@@ -229,6 +293,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const report: BattleReport = {
     id: battleId, enemyId: enemy.id, questType: questTypeOf(enemy), instance: inst, review,
     newlyMet: enemy.criteria.filter((k) => k.met && !metBefore.has(k.id)).map((k) => k.id),
+    awaitingYou: verdict.awaitingYou.length ? verdict.awaitingYou : undefined,
     party: party.map((c) => ({ characterId: c.id, share })),
     costGold: +(costGold + judgeGold).toFixed(4), costMp, turns, verdict, xpAwarded, promotions, curses,
     at: new Date().toISOString(),
@@ -240,19 +305,24 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
 
 // ---------- Treasure Vault ----------
 
-function pendingBattle(world: World, battleId: string): BattleReport & { instance: InstanceInfo } {
+function pendingBattle(world: World, battleId: string): BattleReport {
   const b = world.battles.find((x) => x.id === battleId);
   if (!b) throw new Error(`No battle ${battleId}.`);
-  if (!b.instance) throw new Error(`Battle ${battleId} ran directly in your folder; there is nothing to keep or undo.`);
-  if (b.review !== "pending") throw new Error(`Battle ${battleId} is already ${b.review ?? "settled"}.`);
-  return b as BattleReport & { instance: InstanceInfo };
+  if (b.review !== "pending") throw new Error(`Battle ${battleId} has nothing waiting at the Treasure Vault (${b.review ?? "it ran directly in your folder"}).`);
+  return b;
 }
 
 /** Keep the battle's changes: they are merged into your project. */
 export async function keepBattle(world: World, store: Store, battleId: string, cwd: string): Promise<string> {
   const b = pendingBattle(world, battleId);
-  const msg = await keep(cwd, b.instance);
+  const msg = b.instance?.savePoints.length ? await keep(cwd, b.instance) : "Confirmed.";
   b.review = "kept";
+  // Keeping is your proof for the conditions only you could judge.
+  const enemy = world.enemies.find((e) => e.id === b.enemyId);
+  if (enemy && b.awaitingYou?.length) {
+    for (const k of enemy.criteria) if (b.awaitingYou.includes(k.id)) k.met = true;
+    if (b.verdict.outcome === "victory") enemy.status = "defeated";
+  }
   store.log({ type: "review", battle: battleId, decision: "kept" });
   return msg;
 }
@@ -263,11 +333,11 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
  */
 export async function undoBattle(world: World, store: Store, battleId: string, cwd: string, council?: Council): Promise<string> {
   const b = pendingBattle(world, battleId);
-  await discard(cwd, b.instance);
+  if (b.instance?.savePoints.length) await discard(cwd, b.instance);
   b.review = "undone";
   const enemy = world.enemies.find((e) => e.id === b.enemyId);
   if (enemy) {
-    for (const k of enemy.criteria) if (b.newlyMet?.includes(k.id)) k.met = false;
+    for (const k of enemy.criteria) if (b.newlyMet?.includes(k.id) || b.awaitingYou?.includes(k.id)) k.met = false;
     if (enemy.status === "defeated") enemy.status = "lurking";
   }
   const t = trialFor(b.verdict.outcome, b.verdict.correctness);
@@ -284,5 +354,7 @@ export async function undoBattle(world: World, store: Store, battleId: string, c
     if (d) council.markOutcome(d.id, "wrong", `undone at the Treasure Vault (battle ${battleId})`);
   }
   store.log({ type: "review", battle: battleId, decision: "undone" });
-  return "Undone: the changes were thrown away and the quest is open again. It counts as a loss for the party.";
+  return b.instance?.savePoints.length
+    ? "Undone: the changes were thrown away and the quest is open again. It counts as a loss for the party."
+    : "Rejected: the quest is open again, and it counts as a loss for the party.";
 }

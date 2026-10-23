@@ -8,7 +8,8 @@ import { join } from "node:path";
 import { Store } from "./store.ts";
 import { battle, keepBattle, undoBattle, type JudgeSpec } from "./battle.ts";
 import { Council } from "./council.ts";
-import { QUEST_TYPES, classifyByRules, questTypeOf } from "./quests.ts";
+import { QUEST_TYPES, classifyByRules, proofOf, questTypeOf } from "./quests.ts";
+import { adventurerOffer, answer, needsApproval, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { recommendParty, checkParty, type Role } from "./party.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
@@ -30,6 +31,13 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
                      [--check "b=npm test"] [--guard "npm test"] [--gold 1] [--turns 20]
   savepoint spawn --file quest.json            Spawn enemies from a JSON file
   savepoint enemies                            Show the bestiary
+
+  The quest loop, in plain words:
+  savepoint request "<what you want>" [--id q7] Guild Counter: the Clerk turns it into a quest
+  savepoint answer <quest> "<your answer>"     Answer the Clerk's or Scout's questions
+  savepoint plan <quest>                       War Room: read-only scouting report and plan
+  savepoint approve <quest>                    Approve the victory conditions and plan (Adventurer, Tactician)
+  savepoint settings [--play-style story|adventurer|tactician]
   savepoint suggest <enemy-id>                 Recommended party for a quest, with reasons
   savepoint battle <enemy-id> [--party a,b] [--judge tests|auto|<character>]  (no --party = use the recommendation)
                      [--in-place]  run in your folder instead of a private copy (no undo)
@@ -59,6 +67,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
+    id: { type: "string" }, "play-style": { type: "string" },
   },
 });
 
@@ -154,17 +163,71 @@ async function main(): Promise<void> {
       console.log(enemiesScreen(world));
       return;
     }
+    case "request": {
+      const text = rest.join(" ").trim();
+      if (!text) throw new Error('Usage: request "<what you want, in plain words>"');
+      const r = await request(world, store, council, text, cwd, values.id);
+      save();
+      console.log(questWindow(r.quest, `GUILD COUNTER · written by ${r.by}`));
+      if (r.dropped.length) console.log(`  (The Gatekeeper refused ${r.dropped.length} proposed check(s) as unsafe; a judge will decide those instead.)`);
+      console.log(nextStep(world, r.quest));
+      return;
+    }
+    case "answer": {
+      const q = world.enemies.find((e) => e.id === rest[0]);
+      if (!q || !rest[1]) throw new Error('Usage: answer <quest> "<your answer>"');
+      answer(q, rest.slice(1).join(" "));
+      save();
+      console.log(`📝 Noted. ${nextStep(world, q)}`);
+      return;
+    }
+    case "plan": {
+      const q = world.enemies.find((e) => e.id === rest[0]);
+      if (!q) throw new Error("Usage: plan <quest>");
+      const r = await warRoom(world, store, q, cwd);
+      save();
+      console.log(warRoomWindow(q, r));
+      console.log(nextStep(world, q));
+      return;
+    }
+    case "approve": {
+      const q = world.enemies.find((e) => e.id === rest[0]);
+      if (!q) throw new Error("Usage: approve <quest>");
+      if (q.questions?.length) throw new Error(`Answer the open questions first: savepoint answer ${q.id} "..."`);
+      q.approved = true;
+      save();
+      console.log(`✅ Approved ${q.name}${q.plan ? " and its plan" : ""}. ${nextStep(world, q)}`);
+      return;
+    }
+    case "settings": {
+      if (values["play-style"]) setPlayStyle(world, values["play-style"]);
+      save();
+      const st = settings(world);
+      console.log(box("SETTINGS", [`Play style: ${st.playStyle}`,
+        st.playStyle === "story" ? "You describe what you want and judge the result. The guild handles the rest." :
+        st.playStyle === "adventurer" ? "You approve victory conditions and plans, and accept or swap the party." :
+        "Every stage is yours to edit.", "Change: savepoint settings --play-style story|adventurer|tactician"]));
+      return;
+    }
     case "battle": {
       const enemyId = rest[0];
       if (!enemyId) throw new Error("Usage: battle <enemy-id> [--party a,b] [--judge tests|auto|<id>]");
       const foe = world.enemies.find((e) => e.id === enemyId);
+      if (foe?.questions?.length) throw new Error(`A Sphinx blocks the road: answer its questions first (savepoint answer ${foe.id} "...").`);
+      if (foe?.approved === false) throw new Error(`${foe.name} is waiting for your approval: savepoint approve ${foe.id}`);
+      // Story mode: the War Room runs on its own before the battle.
+      if (foe && !foe.plan && !needsApproval(world) && !foe.questions?.length) {
+        const wr = await warRoom(world, store, foe, cwd);
+        save();
+        if (wr.scout || wr.planner) console.log(`🗺  War Room: ${[wr.scout && `${wr.scout} scouted`, wr.planner && `${wr.planner} planned`].filter(Boolean).join(", ")}.`);
+        if (wr.verdict !== "proceed") { console.log(warRoomWindow(foe, wr)); console.log(nextStep(world, foe)); return; }
+      }
       let partyIds = (values.party ?? "").split(",").filter(Boolean);
       let j = values.judge ?? "auto";
       if (foe && !partyIds.length) {
         const plan = recommendParty(world, foe, 3, council);
         partyIds = plan.members.filter((m) => m.role !== "judge").map((m) => m.id);
-        const pj = plan.members.find((m) => m.role === "judge");
-        if (!values.judge && pj) j = pj.id;
+        // Judging stays on "auto": up to three judges from other AI companies, chosen at the end.
         console.log(`Recommended party: ${plan.members.map((m) => `${m.name} (${m.role})`).join(", ")}`);
         if (plan.leadDecision?.seat === "you") console.log(`? The Council isn't sure who should lead yet, so it's going with its best guess. Choose yourself with --party.`);
       } else if (foe) {
@@ -192,6 +255,8 @@ async function main(): Promise<void> {
     case "keep": {
       if (!rest[0]) throw new Error("Usage: keep <battle-id>");
       console.log(`📦 ${await keepBattle(world, store, rest[0], cwd)}`);
+      const offer = adventurerOffer(world);
+      if (offer) console.log(`💡 ${offer}`);
       save();
       return;
     }
@@ -213,6 +278,35 @@ async function main(): Promise<void> {
     case "fund": world.treasury.gold += Number(rest[0] ?? 0); save(); console.log(`💰 Treasury now holds ${world.treasury.gold - world.treasury.spent} G`); return;
     default: console.log(HELP);
   }
+}
+
+function questWindow(q: Enemy, title: string): string {
+  const t = QUEST_TYPES[questTypeOf(q)];
+  return box(title, [
+    `${q.id} · ${q.name}`,
+    `${t.label} quest · ${q.kind} · Lv ${q.level} · budget ${q.budget.gold ?? t.gold} G`,
+    "Victory conditions:",
+    ...q.criteria.flatMap((k) => [`  • ${k.description}`,
+      `    proven by ${proofOf(k) === "command" ? `running: ${k.check}` : proofOf(k) === "human" ? "you, at the Treasure Vault" : "independent judges"}`]),
+    ...(q.questions?.length ? ["A Sphinx blocks the road. Questions:", ...q.questions.map((x) => `  ? ${x}`)] : []),
+  ]);
+}
+
+function warRoomWindow(q: Enemy, r: { verdict: string; scout?: string; planner?: string; questions: string[]; splits: string[] }): string {
+  const lines = [`${q.id} · ${q.name}`];
+  if (r.scout) lines.push(`Scout: ${r.scout} → ${r.verdict === "proceed" ? "clear to proceed" : r.verdict === "unclear" ? "unclear, needs your answer" : "really several quests"}`);
+  if (r.verdict === "split") lines.push("Suggested quests:", ...r.splits.map((x) => `  • ${x}`), 'Request each one: savepoint request "..."');
+  if (r.verdict === "unclear") lines.push(...(q.questions ?? []).map((x) => `  ? ${x}`));
+  if (q.plan) lines.push(`Plan by ${r.planner}:`, ...q.plan.split("\n").slice(0, 12).map((x) => `  ${x}`));
+  if (!r.scout && !r.planner) lines.push("Nobody is free for a desk job: recruit a hero first.");
+  return box("WAR ROOM", lines);
+}
+
+function nextStep(world: World, q: Enemy): string {
+  if (q.questions?.length) return `Next: savepoint answer ${q.id} "..."`;
+  if (q.approved === false) return `Next: check it, then savepoint approve ${q.id}${q.plan ? "" : ` (or savepoint plan ${q.id} first)`}`;
+  if (!q.plan && needsApproval(world)) return `Next: savepoint plan ${q.id} (or go straight to savepoint battle ${q.id})`;
+  return `Next: savepoint battle ${q.id}`;
 }
 
 async function readStdin(): Promise<string> {

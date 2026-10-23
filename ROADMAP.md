@@ -21,8 +21,8 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | ✅ **Quest types** and proof per victory condition | 👺 | `src/quests.ts` |
 | ✅ **The Council**, seats 1–2 (Law, Ledger) with decision records and outcomes | 🐗 | `src/council.ts`, `src/ledger.ts` |
 | Council seat 3: **the Seer** adapter (Jev, Arch-Router, or a small model asked 3×) | 👺 | See docs/DESIGN_PLAN.md §8–9 |
-| Council seat 4: **fair cross-company judge** (authors hidden, order swapped, majority vote) | 🐗 | |
-| **Clerk, Scout and Plan** steps with structured outputs | 🐗 | |
+| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) | 🐗 | Next: pairwise comparison for Pincer |
+| ✅ **Clerk, Scout and Plan** (`request`, `answer`, `plan`, `approve`) and play styles | 🐗 | Next: import from GitHub Issues |
 | Enemy state machine: lurking → engaged → review → defeated / enraged (retrying) / escaped | 👺 | See ORCH in docs/CROSS_REFERENCE.md |
 | **Battlefield**: file globs a battle may touch; edits outside = violation | 👺 | Extend `gate.ts` |
 | `Stop` hook: "The enemy still stands!" — no proof, no victory | 👺 | Turn-budget capped; see jev-belay for the pattern |

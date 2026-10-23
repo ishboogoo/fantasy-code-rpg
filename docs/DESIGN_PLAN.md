@@ -20,12 +20,12 @@ You decide at Request (what "done" means), Plan, and Review. In Story mode, only
 
 | Stage | Scene | What really happens | Why it improves the result | Status |
 |---|---|---|---|---|
-| 1 Request | Guild Counter | The Clerk restates the goal, proposes victory conditions each with a proof (command, judge or you), sets a budget, flags anything unclear | Most failed tasks were never defined | ✅ quest types, proof kinds, default budgets · 🔨 Clerk |
-| 2 Scout | Scouts' Lodge | Read-only recon: map files, reproduce the bug, pull related lore | Catches wrong diagnoses and hidden extra work cheaply | 🔨 |
-| 3 Plan | War Room | Steps, files, test strategy, risks, cost; big quests split | Plans are checked in seconds; bad code takes hours | 🔨 |
+| 1 Request | Guild Counter | The Clerk restates the goal, proposes victory conditions each with a proof (command, judge or you), sets a budget, flags anything unclear | Most failed tasks were never defined | ✅ `savepoint request`: the Clerk writes conditions with proofs; unsafe checks are refused; questions block the road |
+| 2 Scout | Scouts' Lodge | Read-only recon: map files, reproduce the bug, pull related lore | Catches wrong diagnoses and hidden extra work cheaply | ✅ in `savepoint plan`; loops back when unclear or really several quests |
+| 3 Plan | War Room | Steps, files, test strategy, risks, cost; big quests split | Plans are checked in seconds; bad code takes hours | ✅ `savepoint plan`, `approve`; the plan goes to the party |
 | 4 Form party | War Room | Recommended lead, supports, judge, formation, tactics; swap anyone | Puts each AI on work it has a record at; keeps the judge independent | ✅ recommendation + warnings, lead chosen by the Council |
 | 5 Battle | Battlefield | Heroes work in a private copy; a save point after each turn | Nothing breaks your project; any step can be undone | ✅ instances + save points |
-| 6 Review | Treasure Vault | Proof per condition, cross-company judge, Keep / Undo | Evidence, not claims | ✅ Keep / Undo · 🔨 fair cross-company judge |
+| 6 Review | Treasure Vault | Proof per condition, cross-company judge, Keep / Undo | Evidence, not claims | ✅ Keep / Undo, fair cross-company vote per condition, your conditions settled at Keep |
 | 7 Debrief | Library | Lessons to the Chronicle; outcomes marked on every Council decision | How the guild adapts to you | ✅ Council outcomes · 🔨 lessons |
 
 ## 2. Quest types
@@ -140,7 +140,7 @@ Every decision is answered by the cheapest seat that is sure enough, written to 
 | 1 Law | Risky actions, budget, loops, "it has a test: run it", quest type by keywords, lead when only one hero qualifies | Free | No rule applies | ✅ quest type, lead · 🔨 loop detection |
 | 2 Ledger | Lead by win record per quest type × hero (Thompson sampling) | Free | Too little data, or no clear best | ✅ |
 | 3 Seer | Quest type, clarity, risk, stuck; asked 3×, unanimous only | < 1 s, fractions of a cent (estimate) | Answers disagree, or under the bar | 🔨 adapter |
-| 4 Trial | Proof of victory; which of two solutions. Run checks first; then 2–3 judges from different companies, authors hidden, both orders, majority vote | Seconds–minutes, ~3¢ (estimate) | Split, order flips verdict, tests vs judges | ✅ checks · 🔨 vote |
+| 4 Trial | Proof of victory; which of two solutions. Run checks first; then up to 3 judges from different companies, authors hidden, order rotated, unanimous vote per condition | Seconds–minutes, ~3¢ (estimate) | Split, tests vs judges | ✅ proof vote · 🔨 comparing two solutions |
 | 5 You | Irreversible actions, splits, unclear requests | Your time | — | ✅ (suggestion shown) |
 
 Bars: 0.95 for hard-to-undo decisions, 0.85 otherwise; recalibrated weekly from outcomes (batch jobs at half price). A decision type moves to a cheaper seat after ~50 correct cases (our rule of thumb). Prompts share a fixed cached prefix (5–10% of input price at Anthropic, OpenAI and Google).
@@ -171,9 +171,9 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 
 1. ✅ **Quest record upgrade.** Quest types, proof per condition, default budgets, "needs".
 2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. 🔨 One trust rulebook compiled into hooks for all three CLIs.
-3. 🔨 **Clerk, Scout and Plan steps** with structured outputs, each asking the Council.
+3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). 🔨 A Seer adapter to confirm the Clerk's quest type.
 4. ✅ **Party recommendation** through the Council (Law + Ledger). 🔨 Learning from swaps.
 5. 🔨 **Battle event stream** to the browser.
-6. 🔨 **Treasure Vault** fair cross-company judge and the "no proof, no victory" gate.
+6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. 🔨 `Stop`-hook gate inside Claude Code so heroes keep working while checks fail.
 7. 🔨 **Debrief** lessons into the Chronicle.
 8. ⏳ **Launch scenes** in loop order, then the Next scenes.
