@@ -21,7 +21,7 @@ A scheduled check runs twice a day (08:33 and 17:33 Japan time). It finds new pu
 2. Alex approves the test run (required for every outside contributor).
 3. Checks run: tests on Node 22 and 24, the packed release installed and played, and the Codex review.
 4. First-pass review, in this order:
-   - **Safety.** Changes to the Gatekeeper, hooks, rules, adapters, hero import, instances, workflows or `package.json` get the strictest look: could a hero act above its rank, could secrets leak, could a release be hijacked, is a dependency added? These files are code-owned, so they also need Alex's own approval.
+   - **Safety.** Changes to the Gatekeeper (including its entry point in `src/cli.ts`), hooks, rules, the game server, adapters, hero import, instances, workflows or `package.json` get the strictest look: could a hero act above its rank, could secrets leak, could a release be hijacked, is a dependency added? These files are code-owned, so they also need Alex's own approval.
    - **Scope.** It does what the issue asks and nothing unrelated; no conflict with `main`.
    - **Quality.** Tests for new behaviour; zero runtime dependencies; erasable TypeScript; plain words in the interface, in English and Japanese.
 5. The assistant comments with the changes needed, or says it's ready for Alex.

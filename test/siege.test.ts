@@ -55,6 +55,15 @@ test("Siege: a part that clashes is set aside, and only its hero's trust is left
   assert.ok(existsSync(join(dir, "a.txt")) && !existsSync(join(dir, "b.txt")));
 });
 
+test("Siege: a hero whose part changed nothing earns no proof", async () => {
+  const { dir, store, w } = setup("echo a > a.txt", "true");
+  const r = await battle({ world: w, store, enemyId: "q1", partyIds: ["anna", "bo"], judge: { kind: "tests" }, cwd: dir, formation: "siege" });
+  assert.deepEqual(r.contributors, ["anna"]);
+  await keepBattle(w, store, r.id, dir);
+  assert.equal(w.party.find((c) => c.id === "anna")!.proof?.length, 1);
+  assert.equal(w.party.find((c) => c.id === "bo")!.proof?.length ?? 0, 0);
+});
+
 test("Siege needs parts", async () => {
   const { dir, store, w, q } = setup("true", "true");
   delete q.parts;

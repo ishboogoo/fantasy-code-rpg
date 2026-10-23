@@ -2,6 +2,8 @@
 # They decide what a hero may do, what a shared hero file can carry, and how releases are made.
 src/gate.ts          @ishboogoo
 src/hooks.ts         @ishboogoo
+src/cli.ts           @ishboogoo  # holds the hook entry point that allows or denies every tool call
+src/play.ts          @ishboogoo  # the local game server and its access key
 src/rules.ts         @ishboogoo
 src/heroes.ts        @ishboogoo
 src/instance.ts      @ishboogoo

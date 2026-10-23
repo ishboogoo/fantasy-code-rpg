@@ -2,6 +2,11 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [Unreleased]
+
+### Fixed
+- In a Siege, a hero whose part changed nothing no longer earns proof on their card.
+
 ## [0.2.6]
 
 ### Fixed
