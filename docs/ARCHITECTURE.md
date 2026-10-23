@@ -54,6 +54,7 @@ flowchart LR
 | `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
 | `src/hooks.ts` | One rulebook for three CLIs: tool-name translation, reply formats, the "no proof, no victory" stop gate, hook settings for Claude Code, Codex and Gemini CLI. | checks run on stop |
 | `src/importers.ts` | GitHub Issues → quests through `gh`. | `gh` |
+| `src/play.ts`, `src/play.html` | The browser game: local server (127.0.0.1 + one-time key), state snapshot without secrets, live events over SSE, Keep / Undo / Approve; the page draws sprites with `assets/generators`. | http |
 | `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
 | `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |

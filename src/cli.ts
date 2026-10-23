@@ -2,7 +2,7 @@
 // savepoint — command-line entry point.
 
 import { parseArgs } from "node:util";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "./store.ts";
@@ -14,7 +14,7 @@ import { recommendParty, checkParty, type Role } from "./party.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { importGithub } from "./importers.ts";
-import { decideTool, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
+import { decideTool, moveFor, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
 import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { dirname } from "node:path";
 import { box, enemiesScreen, partyScreen, reportScreen, characterLine } from "./render.ts";
@@ -49,6 +49,7 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
+  savepoint play [--port 4747] [--demo]        The game in your browser (local only). --demo stages a simulated battle
   savepoint gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
   savepoint stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
   savepoint statusline                         One-line HUD for Claude Code's status line
@@ -70,6 +71,7 @@ const { values, positionals } = parseArgs({
     file: { type: "string" }, party: { type: "string" }, judge: { type: "string" },
     battles: { type: "string" }, help: { type: "boolean", short: "h" },
     type: { type: "string" }, "in-place": { type: "boolean" },
+    port: { type: "string" }, demo: { type: "boolean" },
     id: { type: "string" }, label: { type: "string" }, limit: { type: "string" }, repo: { type: "string" }, "play-style": { type: "string" }, cli: { type: "string" },
   },
 });
@@ -105,6 +107,7 @@ async function main(): Promise<void> {
     return;
   }
   if (cmd === "demo") return demo(Number(values.battles ?? 40));
+  if (cmd === "play") return play();
   if (cmd === "gate") return gate();
   if (cmd === "stop-gate") return stopGateCmd();
   if (cmd === "statusline") return statusline();
@@ -346,6 +349,9 @@ async function gate(): Promise<void> {
   const tool = event.tool_name ?? "unknown";
   const decision = c ? decideTool(cli, tool, event.tool_input ?? {}, permissionsFor(c.tier))
     : { allow: false, reason: `Unknown character ${id}.` };
+  const m = moveFor(cli, tool, event.tool_input ?? {});
+  s.event({ type: "action", hero: id, quest: process.env.SAVEPOINT_QUEST, move: m.move, target: m.target, allowed: decision.allow,
+    reason: decision.allow ? undefined : decision.reason });
   if (decision.allow) return;
   s.recordViolation(id, tool, decision.reason);
   console.log(denyOutput(cli, decision.reason));
@@ -376,6 +382,50 @@ function statusline(): void {
   });
   const foes = w.enemies.filter((e) => e.status !== "defeated").length;
   console.log(`💾 ${hud.join(" │ ")} │ 💰${(w.treasury.gold - w.treasury.spent).toFixed(2)}G │ 👾${foes}`);
+}
+
+/** The browser game. With --demo, a simulated party fights a few quests in a scratch project so there is something to watch. */
+async function play(): Promise<void> {
+  let dir = cwd;
+  if (values.demo) {
+    dir = mkdtempSync(join(tmpdir(), "savepoint-play-"));
+    // A tiny git project, so the demo battles run in their own copies like real ones.
+    const { execFileSync } = await import("node:child_process");
+    try {
+      const g = (...a: string[]) => execFileSync("git", ["-c", "user.name=Savepoint", "-c", "user.email=savepoint@localhost", ...a], { cwd: dir, stdio: "ignore" });
+      g("init", "-q"); writeFileSync(join(dir, "README.md"), "# Demo project\n"); g("add", "-A"); g("commit", "-q", "-m", "Demo project");
+    } catch { /* no git: the demo runs in place */ }
+    const s = new Store(dir);
+    s.init();
+    const w = s.load();
+    w.treasury.gold = 20;
+    w.party.push(
+      newCharacter("Aria", "mock", "fighter", { tier: 1, adapterConfig: { skill: "0.95", seed: "play", pace: "700" }, look: { race: "human", build: "feminine" } }),
+      newCharacter("Rook", "mock", "thief", { tier: 1, adapterConfig: { skill: "0.8", seed: "play", pace: "700" }, look: { race: "beastkin", build: "masculine" } }),
+      newCharacter("Mira", "mock", "mage", { tier: 1, adapterConfig: { skill: "0.9", seed: "play", pace: "700" }, look: { race: "elf", build: "feminine" } }),
+      newCharacter("Cass", "mock", "cleric", { tier: 1, adapterConfig: { skill: "0.9", seed: "play", pace: "700" }, look: { race: "fae", build: "feminine" } }),
+    );
+    s.save(w);
+  } else if (!store.exists()) throw new Error("No world here. Run `savepoint init` first, or try `savepoint play --demo`.");
+  const { startPlay } = await import("./play.ts");
+  const server = await startPlay(dir, Number(values.port ?? 4747));
+  console.log(box("FANTASY CODE RPG", ["Open this link in your browser (it only works on this computer):", server.url,
+    "Q: Quest Board · V: Treasure Vault · Ctrl+C to quit"]));
+  if (!values.demo) return;
+  const s = new Store(dir);
+  const council = new Council(s.chronicleDir);
+  const quests: Array<[string, Enemy["kind"]]> = [["Login page crashes on empty email", "goblin"], ["Checkout fails for some users", "lich"], ["Update the setup guide", "mimic"]];
+  await new Promise((r) => setTimeout(r, 4000));
+  for (const [i, [name, kind]] of quests.entries()) {
+    const w = s.load();
+    const id = `q${i + 1}`;
+    w.enemies.push({ id, name, kind, level: 2 + i, description: name, status: "lurking", budget: { gold: 1, maxTurns: 6 },
+      criteria: [{ id: "works", description: "It works", met: false }, { id: "tests", description: "Tests cover it", met: false }, { id: "looks", description: "It looks right", proof: "human", met: false }] });
+    const plan = recommendParty(w, w.enemies.at(-1)!, 3, council);
+    await battle({ world: w, store: s, enemyId: id, partyIds: plan.members.filter((m) => m.role !== "judge").map((m) => m.id), judge: { kind: "auto" }, cwd: dir, council });
+    s.save(w);
+    await new Promise((r) => setTimeout(r, 9000));
+  }
 }
 
 /** A self-contained simulated campaign, so anyone can see the mechanics in 5 seconds. */

@@ -173,7 +173,7 @@ Outside tools are optional adapters, earn their seat on our own records, and fai
 2. ✅ **Instances and save points.** Worktree per battle, commit per turn, Keep / Undo. ✅ One rulebook enforced through hooks in Claude Code, Codex and Gemini CLI.
 3. ✅ **Clerk, Scout and Plan steps.** `request`, `answer`, `plan`, `approve`, play styles (`settings`). ✅ `import github`. 🔨 A Seer adapter to confirm the Clerk's quest type.
 4. ✅ **Party recommendation** through the Council (Law + Ledger). 🔨 Learning from swaps.
-5. 🔨 **Battle event stream** to the browser.
+5. ✅ **Battle event stream** and the first browser screen: `savepoint play` shows the live battle (moves, save points, damage, verdict), the party, the Quest Board (Q) and the Treasure Vault (V) with Keep / Undo / Approve. `--demo` stages a simulated party.
 6. ✅ **Treasure Vault** fair cross-company vote; conditions only you can judge settled at Keep. ✅ "No proof, no victory" stop hook in all three CLIs.
 7. 🔨 **Debrief** lessons into the Chronicle.
-8. ⏳ **Launch scenes** in loop order, then the Next scenes.
+8. 🔨 **Launch scenes** in loop order: Title, Guild Town, Guild Counter and War Room next, then Tavern and Inn; Japanese text.

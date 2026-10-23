@@ -35,6 +35,8 @@ export interface Character {
   /** Subscription quota, for CLI adapters. */
   mp?: { max: number; current: number; refillHours: number; lastRefill: string };
   recruitedAt: string;
+  /** How the hero looks. Missing fields are chosen from the hero's id, so a look never changes by itself. */
+  look?: { race?: string; build?: "feminine" | "masculine" };
 }
 
 export interface Criterion {

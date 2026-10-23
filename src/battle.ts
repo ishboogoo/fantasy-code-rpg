@@ -186,7 +186,9 @@ async function judgeBattle(opts: BattleOptions, enemy: Enemy, fighters: Characte
 
 export async function battle(opts: BattleOptions): Promise<BattleReport> {
   const { world, store, cwd } = opts;
-  const say = opts.onEvent ?? (() => {});
+  const battleId = randomUUID().slice(0, 8);
+  const emit = (e: Record<string, unknown>) => store.event({ battle: battleId, ...e });
+  const say = (line: string) => { opts.onEvent?.(line); emit({ type: "say", text: line.trim() }); };
   const enemy = world.enemies.find((e) => e.id === opts.enemyId);
   if (!enemy) throw new Error(`No enemy with id ${opts.enemyId}`);
   if (enemy.status === "defeated") throw new Error(`${enemy.name} is already defeated.`);
@@ -202,13 +204,15 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   });
 
   // A private copy of the project, with save points after every turn.
-  const battleId = randomUUID().slice(0, 8);
   const isolate = opts.isolate ?? await canIsolate(cwd);
   let inst: InstanceInfo | undefined;
   if (isolate) inst = await createInstance(cwd, battleId);
   const workdir = inst?.path ?? cwd;
   const metBefore = new Set(enemy.criteria.filter((k) => k.met).map((k) => k.id));
   resetStopCounters(store.root, enemy.id);
+  const hpLeft = () => enemy.criteria.filter((k) => !k.met).length;
+  emit({ type: "battle_start", quest: { id: enemy.id, name: enemy.name, kind: enemy.kind, questType: questTypeOf(enemy), level: enemy.level, hp: hpLeft(), maxHp: enemy.criteria.length },
+    party: party.map((c) => c.id), isolated: !!inst });
   store.log({ type: "battle_start", battle: battleId, enemy: enemy.id, party: party.map((c) => c.id), base: inst?.base ?? null, workdir });
   say(`${enemy.name} appears! (Lv ${enemy.level}, ${enemy.criteria.filter((k) => !k.met).length} HP)`);
   if (inst) say(`💾 Save point ${inst.base.slice(0, 8)} · the party fights in its own copy of the project`);
@@ -226,6 +230,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     const broke = canAfford(world, c, Math.min(goldLimit, 0.01), c.mp ? 1 : 0);
     if (broke) { say(`  ${c.name}: ${broke}`); continue; }
     say(`  ${c.name} the ${title(c)} acts…`);
+    emit({ type: "turn", hero: c.id });
     const before = store.violationCount(c.id);
     const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: workdir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
     const blocked = store.violationCount(c.id) - before;
@@ -235,7 +240,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     store.writeScroll(enemy.id, `${c.name} (${title(c)})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
     if (inst) {
       const sp = await savePoint(inst, `${c.name} (${title(c)}) on ${enemy.id}`);
-      if (sp) say(`  💾 Save point ${sp.slice(0, 8)}`);
+      if (sp) { say(`  💾 Save point ${sp.slice(0, 8)}`); emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) }); }
     }
     if (r.violation) { critical = `${c.name} ${r.violation}`; say(`  ⚠️  ${critical}`); break; }
     if (r.error) say(`  ✖ ${r.error}`);
@@ -272,6 +277,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     if (change === "cursed") { curses.push(c.id); say(`  🩸 ${c.name} is cursed and falls to ${title(c)} (Tier ${c.tier}).`); }
   }
 
+  emit({ type: "verdict", outcome: verdict.outcome, correctness: verdict.correctness, hp: hpLeft(), maxHp: enemy.criteria.length,
+    judgedBy: verdict.judgedBy, awaitingYou: verdict.awaitingYou });
   // A victory still waiting for your confirmation stays open until you Keep it.
   enemy.status = verdict.outcome === "victory" && !verdict.awaitingYou.length ? "defeated" : "lurking";
 
@@ -309,6 +316,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     at: new Date().toISOString(),
   };
   world.battles.push(report);
+  emit({ type: "battle_end", outcome: verdict.outcome, review, xp: xpAwarded, promotions, curses });
   store.log({ type: "battle_end", ...report });
   return report;
 }
@@ -327,6 +335,7 @@ export async function keepBattle(world: World, store: Store, battleId: string, c
   const b = pendingBattle(world, battleId);
   const msg = b.instance?.savePoints.length ? await keep(cwd, b.instance) : "Confirmed.";
   b.review = "kept";
+  store.event({ type: "review", battle: battleId, decision: "kept" });
   // Keeping is your proof for the conditions only you could judge.
   const enemy = world.enemies.find((e) => e.id === b.enemyId);
   if (enemy && b.awaitingYou?.length) {
@@ -345,6 +354,7 @@ export async function undoBattle(world: World, store: Store, battleId: string, c
   const b = pendingBattle(world, battleId);
   if (b.instance?.savePoints.length) await discard(cwd, b.instance);
   b.review = "undone";
+  store.event({ type: "review", battle: battleId, decision: "undone" });
   const enemy = world.enemies.find((e) => e.id === b.enemyId);
   if (enemy) {
     for (const k of enemy.criteria) if (b.newlyMet?.includes(k.id) || b.awaitingYou?.includes(k.id)) k.met = false;

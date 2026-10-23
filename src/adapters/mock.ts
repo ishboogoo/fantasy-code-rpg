@@ -3,6 +3,21 @@
 // makes runs reproducible.
 
 import type { Adapter, AdapterResult } from "./adapter.ts";
+import { appendFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+
+const MOVES: Array<[string, string]> = [["SCAN", "src/login.ts"], ["SCAN", "test/login.test.ts"], ["FORGE", "src/login.ts"], ["TRIAL", "npm test"], ["FORGE", "src/validate.ts"]];
+
+/** Simulated heroes act out a few moves so the battle screen has something to show. adapterConfig.pace = ms per move. */
+async function actOut(home: string | undefined, hero: string, quest: string | undefined, pace: number, rand: () => number): Promise<void> {
+  if (!home || !pace || !existsSync(join(home, "chronicle"))) return;
+  const n = 2 + Math.floor(rand() * 3);
+  for (let i = 0; i < n; i++) {
+    await new Promise((r) => setTimeout(r, pace));
+    const [move, target] = MOVES[Math.floor(rand() * MOVES.length)];
+    appendFileSync(join(home, "chronicle", "events.jsonl"), JSON.stringify({ at: new Date().toISOString(), type: "action", hero, quest, move, target, allowed: true }) + "\n");
+  }
+}
 
 function rng(seedStr: string): () => number {
   let h = 2166136261;
@@ -62,6 +77,7 @@ export const mock: Adapter = {
       return { output: "Tried to force-push to main.", costGold, costMp: 1, turns, violation: "attempted an action above its tier" };
     }
 
+    await actOut(req.home, req.character.id, req.questId, Number(cfg.pace ?? 0), rand);
     const ids = [...req.prompt.matchAll(/^- \[(\w[\w-]*)\]/gm)].map((m) => m[1]);
     const done = ids.filter(() => rand() < skill);
     const lines = done.map((id) => `DONE: ${id}`);

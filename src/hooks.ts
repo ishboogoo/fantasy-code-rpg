@@ -110,3 +110,23 @@ export function codexHookArgs(c: HookCommands): string[] {
     "-c", `hooks.Stop=[{hooks=[{type="command",command=${t(`${c.stop} --cli codex`)},timeout=900}]}]`,
   ];
 }
+
+// ---------- Battle animation ----------
+
+/** Every tool call becomes a named move on the battle screen. */
+export function moveFor(cli: HookCli, toolName: string, input: Record<string, unknown>): { move: string; target: string } {
+  const n = normalizeTool(cli, toolName, input);
+  const path = String(n.input.file_path ?? n.input.path ?? n.input.pattern ?? "");
+  const short = (s: string) => (s.length > 48 ? "…" + s.slice(-47) : s);
+  const cmd = String(n.input.command ?? "");
+  if (/^(Read|Grep|Glob|LS)$/.test(n.tool)) return { move: "SCAN", target: short(path.split("\n")[0]) };
+  if (/^(Edit|Write|MultiEdit|NotebookEdit)$/.test(n.tool)) {
+    const file = cli === "codex" ? (path.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/)?.[1] ?? "files") : path;
+    return { move: "FORGE", target: short(file) };
+  }
+  if (n.tool === "Bash") return { move: /\b(test|jest|vitest|pytest|mocha|check|lint|tsc)\b/.test(cmd) ? "TRIAL" : "CAST", target: short(cmd.split("\n")[0]) };
+  if (/^(WebFetch|WebSearch)$/.test(n.tool)) return { move: "SCRY", target: short(String(n.input.url ?? n.input.query ?? "")) };
+  if (/^(Task|Agent)$/.test(n.tool)) return { move: "SUMMON", target: "a helper" };
+  if (n.tool.startsWith("mcp__")) return { move: "INVOKE", target: n.tool.slice(5).replace(/__/g, " · ") };
+  return { move: "USE", target: toolName };
+}

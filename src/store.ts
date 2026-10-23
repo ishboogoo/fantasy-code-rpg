@@ -66,6 +66,14 @@ export class Store {
       JSON.stringify({ at: new Date().toISOString(), ...event }) + "\n");
   }
 
+  /** Game events for the browser (and anyone else watching): one JSON object per line. */
+  get eventsFile(): string { return join(this.chronicleDir, "events.jsonl"); }
+
+  event(e: Record<string, unknown>): void {
+    mkdirSync(this.chronicleDir, { recursive: true });
+    appendFileSync(this.eventsFile, JSON.stringify({ at: new Date().toISOString(), ...e }) + "\n");
+  }
+
   recordViolation(characterId: string, tool: string, reason: string): void {
     mkdirSync(this.chronicleDir, { recursive: true });
     appendFileSync(join(this.chronicleDir, "violations.jsonl"),

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fantasy Code RPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<style>
+  :root { --ink:#020806; --code0:#04140c; --code1:#0a3a1e; --code2:#1f8a3c; --code3:#7dff9a; --code4:#e8ffe8;
+          --gold:#ffe090; --gold2:#e0b040; --red:#ff9a70; --steel:#a8b4c8; --white:#ffffff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--white); overflow: hidden;
+               font-family: 'DotGothic16', ui-monospace, monospace; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1152px; height: 648px; overflow: hidden;
+           background: linear-gradient(180deg, #020806 0%, #04140c 45%, #0a3a1e 78%, #145a2c 100%); }
+  canvas.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+  #rain { position: absolute; left: 0; top: 0; width: 1152px; height: 648px; opacity: .55; }
+  #ground { position: absolute; left: 0; top: 400px; width: 1152px; height: 248px; background-color: #04100a;
+            background-image: linear-gradient(#1f8a3c 3px, transparent 3px), linear-gradient(90deg, #145a2c 3px, transparent 3px);
+            background-size: 48px 24px; border-top: 3px solid var(--code3); }
+  .win { position: absolute; background: repeating-linear-gradient(0deg, rgba(125,255,154,.05) 0 1px, transparent 1px 4px),
+         linear-gradient(180deg, #0e3a22 0%, #06200f 45%, #020a06 100%); border: 3px solid #c8ffd4; border-radius: 9px;
+         box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 3px var(--code2), 0 0 12px rgba(125,255,154,.25);
+         color: var(--white); text-shadow: 3px 3px 0 var(--ink); padding: 10px 16px; }
+  .label { color: var(--code3); font-size: 16px; }
+  .quiet { color: var(--steel); }
+  .gold { color: var(--gold); }
+  #quest { left: 12px; top: 12px; width: 560px; font-size: 24px; }
+  #quest .meta { font-size: 16px; }
+  .hp { display: flex; gap: 4px; margin-top: 6px; }
+  .hp i { width: 28px; height: 12px; background: var(--red); border: 3px solid var(--ink); }
+  .hp i.gone { background: #1a1428; }
+  #gold { right: 12px; top: 12px; font-size: 16px; }
+  #banner { left: 50%; top: 96px; transform: translateX(-50%); font-size: 24px; opacity: 0; transition: opacity .25s; white-space: nowrap; }
+  #banner.show { opacity: 1; }
+  #foe { position: absolute; left: 120px; top: 150px; }
+  #heroes { position: absolute; right: 60px; top: 200px; display: flex; gap: 18px; align-items: flex-end; }
+  .hero { position: relative; transition: transform .2s; }
+  .hero.acting { transform: translateX(-36px); }
+  .hero .tag { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); font-size: 16px; color: var(--code4); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
+  .pop { position: absolute; font-size: 48px; color: var(--gold); text-shadow: 3px 0 var(--ink), -3px 0 var(--ink), 0 3px var(--ink), 0 -3px var(--ink), 6px 6px 0 #145a2c;
+         animation: pop 1.4s ease-out forwards; pointer-events: none; }
+  .pop.miss { color: var(--steel); font-size: 32px; }
+  @keyframes pop { 0% { transform: translateY(0); opacity: 0 } 15% { opacity: 1 } 100% { transform: translateY(-60px); opacity: 0 } }
+  #party { left: 12px; bottom: 12px; width: 660px; height: 196px; display: flex; flex-direction: column; gap: 6px; }
+  .member { display: grid; grid-template-columns: 54px 120px 150px 1fr; align-items: center; gap: 10px; font-size: 16px; }
+  .member canvas { width: 48px; height: 48px; border-radius: 6px; box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--code3);
+                   background: linear-gradient(180deg, #2a7a48 0%, #0e3a22 45%, #04140c 100%); }
+  .member .name { font-size: 24px; }
+  .bar { height: 12px; background: #1a1428; border: 3px solid var(--ink); position: relative; }
+  .bar b { position: absolute; left: 0; top: 0; bottom: 0; background: #4890e0; }
+  #log { right: 12px; bottom: 12px; width: 460px; height: 196px; font-size: 16px; line-height: 22px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+  #log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #vault, #board { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 640px; display: none; font-size: 16px; line-height: 24px; z-index: 5; }
+  #vault h2, #board h2 { margin: 0 0 8px; font-weight: normal; font-size: 24px; color: var(--gold); }
+  button.cmd { font: inherit; font-size: 24px; background: none; border: 0; color: var(--white); cursor: pointer; text-shadow: 3px 3px 0 var(--ink); padding: 4px 8px; }
+  button.cmd:hover, button.cmd:focus { color: var(--gold); outline: none; }
+  button.cmd:hover::before, button.cmd:focus::before { content: "▶ "; color: var(--gold); }
+  #help { left: 12px; top: 104px; font-size: 16px; display: none; }
+  #idle { position: absolute; inset: 0; display: none; }
+  #idle img { width: 1152px; height: 648px; image-rendering: pixelated; }
+  #idle .win { left: 50%; bottom: 40px; transform: translateX(-50%); font-size: 16px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .pop, .hero, #banner { animation: none; transition: none; } }
+</style>
+</head>
+<body>
+<div id="stage" role="application" aria-label="Fantasy Code RPG battle screen">
+  <canvas id="rain" class="px" width="384" height="216"></canvas>
+  <div id="ground"></div>
+  <canvas id="foe" class="px" aria-label="The enemy"></canvas>
+  <div id="heroes"></div>
+  <div class="win" id="quest"><div id="qname">Waiting for a quest…</div><div class="meta quiet" id="qmeta"></div><div class="hp" id="qhp"></div></div>
+  <div class="win" id="gold"><span class="gold" id="goldv">0</span> G</div>
+  <div class="win" id="banner"></div>
+  <div class="win" id="party" aria-label="Party"></div>
+  <div class="win" id="log" aria-live="polite"></div>
+  <div class="win" id="vault"></div>
+  <div class="win" id="board"></div>
+  <div id="idle"><img src="/brand/cover.png" alt="Fantasy Code RPG"><div class="win">No battle yet. Start one in your terminal: <span class="gold">savepoint battle &lt;quest&gt;</span> · Press <span class="gold">Q</span> for the Quest Board</div></div>
+</div>
+<script src="/gen/hero.js"></script>
+<script src="/gen/portrait.js"></script>
+<script src="/gen/foe.js"></script>
+<script>
+(function () {
+  var T = new URLSearchParams(location.search).get('t');
+  var stage = document.getElementById('stage');
+  function fit() { var k = Math.min(innerWidth / 1152, innerHeight / 648); stage.style.transform = 'translate(-50%, -50%) scale(' + k + ')'; }
+  addEventListener('resize', fit); fit();
+  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- Digital rain (procedural, at native 384 x 216) ----
+  var rc = document.getElementById('rain'), rx = rc.getContext('2d');
+  var RUNES = [[7,5,7,4,7],[2,7,2,2,7],[5,2,7,2,5],[7,1,3,1,7],[4,6,5,4,4],[1,7,5,7,4],[6,5,6,5,6],[7,2,2,2,2],[5,5,7,1,1],[3,4,2,1,6]];
+  var cols = []; for (var i = 0; i < 70; i++) cols.push({ x: Math.floor(Math.random() * 96) * 4, y: Math.random() * 260 - 40, v: .3 + Math.random() * .7, len: 4 + Math.floor(Math.random() * 14), g: [] });
+  cols.forEach(function (c) { for (var k = 0; k < 24; k++) c.g.push(RUNES[Math.floor(Math.random() * RUNES.length)]); });
+  var pace = 1;
+  function rain() {
+    rx.clearRect(0, 0, 384, 216);
+    cols.forEach(function (c) {
+      c.y += c.v * pace; if (c.y - c.len * 6 > 216) { c.y = -6; c.x = Math.floor(Math.random() * 96) * 4; }
+      for (var k = 0; k < c.len; k++) {
+        var gy = Math.floor(c.y) - k * 6; if (gy < -5 || gy > 216) continue;
+        rx.fillStyle = k === 0 ? '#e8ffe8' : k < 3 ? '#7dff9a' : k < c.len * .6 ? '#1f8a3c' : '#145a2c';
+        var g = c.g[k % c.g.length];
+        for (var r = 0; r < 5; r++) for (var b = 0; b < 3; b++) if (g[r] & (4 >> b)) rx.fillRect(c.x + b, gy + r, 1, 1);
+      }
+    });
+    if (!REDUCED) requestAnimationFrame(rain);
+  }
+  rain();
+
+  // ---- Sprites from the shared generators ----
+  var RACES = ['human', 'elf', 'dwarf', 'beastkin', 'lizardfolk', 'demonkin', 'automaton', 'fae'];
+  function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function look(c) { var h = hash(c.id); return { race: (c.look && c.look.race) || RACES[h % RACES.length], build: (c.look && c.look.build) || ((h >> 3) % 2 ? 'feminine' : 'masculine') }; }
+  function paint(canvas, sprite, k, flip) {
+    canvas.width = sprite.W * k; canvas.height = sprite.H * k;
+    var x = canvas.getContext('2d');
+    for (var y = 0; y < sprite.H; y++) for (var i = 0; i < sprite.W; i++) {
+      var col = sprite.grid[y] && sprite.grid[y][i]; if (!col) continue;
+      x.fillStyle = col; x.fillRect((flip ? sprite.W - 1 - i : i) * k, y * k, k, k);
+    }
+  }
+  function heroSprite(c, pose) { var l = look(c); return hero2({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, pose: pose || 'idle', cursed: c.status.indexOf('cursed') >= 0 }); }
+  function heroPortrait(c) { var l = look(c); return portrait({ job: c.job, tier: c.tier, seed: c.id, adapter: c.adapter, race: l.race, build: l.build, mood: 'determined', age: 'adult', turn: '-1', gaze: 'ahead', facial: 'none', gear: 'none' }); }
+
+  // ---- State ----
+  var state = null, battle = null, logEl = document.getElementById('log');
+  function api(path, opts) { opts = opts || {}; opts.headers = { 'x-savepoint-token': T, 'content-type': 'application/json' }; return fetch(path, opts).then(function (r) { return r.json(); }); }
+  function hero(id) { return state && state.party.filter(function (c) { return c.id === id; })[0]; }
+  function quest(id) { return state && state.quests.filter(function (q) { return q.id === id; })[0]; }
+  function say(text, cls) { var d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls; logEl.appendChild(d); while (logEl.children.length > 8) logEl.removeChild(logEl.firstChild); }
+  var bannerTimer;
+  function banner(text) { var b = document.getElementById('banner'); b.textContent = text; b.classList.add('show'); clearTimeout(bannerTimer); bannerTimer = setTimeout(function () { b.classList.remove('show'); }, 1800); }
+  function pop(text, x, y, miss) { var p = document.createElement('div'); p.className = 'pop' + (miss ? ' miss' : ''); p.textContent = text; p.style.left = x + 'px'; p.style.top = y + 'px'; stage.appendChild(p); setTimeout(function () { p.remove(); }, 1500); }
+
+  function drawQuest(q, hp, maxHp) {
+    document.getElementById('qname').textContent = q ? q.name : 'Waiting for a quest…';
+    document.getElementById('qmeta').textContent = q ? q.type + ' quest · ' + q.kind + ' · Lv ' + q.level : '';
+    var bar = document.getElementById('qhp'); bar.innerHTML = '';
+    for (var i = 0; i < (maxHp || 0); i++) { var s = document.createElement('i'); if (i >= hp) s.className = 'gone'; bar.appendChild(s); }
+    if (q) paint(document.getElementById('foe'), foe2({ kind: q.kind, stage: 0, biome: 'ui', seed: q.id }), 3, false);
+  }
+  function drawHeroes(ids, actingId, pose) {
+    var box = document.getElementById('heroes'); box.innerHTML = '';
+    (ids || []).forEach(function (id) {
+      var c = hero(id); if (!c) return;
+      var wrap = document.createElement('div'); wrap.className = 'hero' + (id === actingId ? ' acting' : ''); wrap.id = 'h-' + id;
+      var cv = document.createElement('canvas'); cv.className = 'px'; cv.setAttribute('aria-label', c.name);
+      paint(cv, heroSprite(c, id === actingId ? 'attack' : pose), 3, true);
+      var tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = c.name;
+      wrap.appendChild(cv); wrap.appendChild(tag); box.appendChild(wrap);
+    });
+  }
+  function drawParty(ids) {
+    var p = document.getElementById('party'); p.innerHTML = '';
+    var list = (ids && ids.length ? ids.map(hero) : state.party.slice(0, 4)).filter(Boolean);
+    list.forEach(function (c) {
+      var row = document.createElement('div'); row.className = 'member';
+      var cv = document.createElement('canvas'); cv.className = 'px'; paint(cv, heroPortrait(c), 1, false);
+      var name = document.createElement('div'); name.innerHTML = '<div class="name"></div><div class="quiet"></div>';
+      name.children[0].textContent = c.name; name.children[1].textContent = c.title + ' · Lv ' + c.level;
+      var trust = document.createElement('div'); trust.className = 'label';
+      var stars = Math.round(c.trust * 5); trust.textContent = 'Trust ' + '●●●●●'.slice(0, stars) + '○○○○○'.slice(0, 5 - stars);
+      var mp = document.createElement('div');
+      if (c.mp) { mp.innerHTML = '<div class="quiet">MP ' + c.mp.current + '/' + c.mp.max + '</div><div class="bar"><b></b></div>'; mp.querySelector('b').style.width = (100 * c.mp.current / c.mp.max) + '%'; }
+      else mp.innerHTML = '<div class="quiet"></div>', mp.firstChild.textContent = 'Powered by ' + c.company;
+      row.appendChild(cv); row.appendChild(name); row.appendChild(trust); row.appendChild(mp); p.appendChild(row);
+    });
+  }
+
+  function showVault(b) {
+    var v = document.getElementById('vault');
+    var q = quest(b.quest);
+    v.innerHTML = '<h2>TREASURE VAULT</h2><div class="quiet"></div><div id="vwait"></div><div style="display:flex;gap:16px;margin-top:10px"><button class="cmd" data-c="keep">KEEP IT</button><button class="cmd" data-c="undo">UNDO</button><button class="cmd" data-c="close">LATER</button></div><div id="vmsg" class="label"></div>';
+    v.children[1].textContent = (q ? q.name : b.quest) + ' · ' + (b.outcome === 'victory' ? 'Victory' : b.outcome) + '. Keep brings the changes into your project; Undo throws them away and counts as a loss.';
+    if (b.awaitingYou && b.awaitingYou.length && q) {
+      var w = document.getElementById('vwait'); w.innerHTML = '<div class="gold">Only you can judge:</div>';
+      q.conditions.filter(function (k) { return b.awaitingYou.indexOf(k.id) >= 0; }).forEach(function (k) { var d = document.createElement('div'); d.textContent = '• ' + k.text; w.appendChild(d); });
+    }
+    v.style.display = 'block';
+    v.querySelectorAll('button').forEach(function (btn) {
+      btn.onclick = function () {
+        var c = btn.getAttribute('data-c'); if (c === 'close') { v.style.display = 'none'; return; }
+        api('/api/cmd', { method: 'POST', body: JSON.stringify({ cmd: c, id: b.id }) }).then(function (r) {
+          document.getElementById('vmsg').textContent = r.message; refresh(); setTimeout(function () { v.style.display = 'none'; }, 1600);
+        });
+      };
+    });
+    v.querySelector('button').focus();
+  }
+
+  function showBoard() {
+    var el = document.getElementById('board');
+    if (el.style.display === 'block') { el.style.display = 'none'; return; }
+    el.innerHTML = '<h2>QUEST BOARD</h2>';
+    var open = state.quests.filter(function (q) { return q.status !== 'defeated'; });
+    if (!open.length) el.innerHTML += '<div class="quiet">No quests. Ask the Clerk: savepoint request "what you want"</div>';
+    open.slice(0, 8).forEach(function (q) {
+      var d = document.createElement('div'); d.style.marginBottom = '6px';
+      var line = q.name + ' · ' + q.type + ' · ' + q.hp + '/' + q.maxHp + ' HP' + (q.questions.length ? ' · a Sphinx blocks the road' : !q.approved ? ' · waiting for your approval' : '');
+      d.textContent = (q.id + '      ').slice(0, 7) + line;
+      if (!q.approved && !q.questions.length) {
+        var b = document.createElement('button'); b.className = 'cmd'; b.style.fontSize = '16px'; b.textContent = 'APPROVE';
+        b.onclick = function () { api('/api/cmd', { method: 'POST', body: JSON.stringify({ cmd: 'approve', id: q.id }) }).then(function () { refresh().then(function () { el.style.display = 'none'; showBoard(); }); }); };
+        d.appendChild(b);
+      }
+      el.appendChild(d);
+    });
+    var pending = state.battles.filter(function (b) { return b.review === 'pending'; });
+    if (pending.length) { var h = document.createElement('div'); h.className = 'gold'; h.textContent = pending.length + ' battle(s) wait at the Treasure Vault. Press V.'; el.appendChild(h); }
+    el.style.display = 'block';
+  }
+
+  addEventListener('keydown', function (e) {
+    if (e.key === 'q' || e.key === 'Q') showBoard();
+    if (e.key === 'v' || e.key === 'V') { var p = state && state.battles.filter(function (b) { return b.review === 'pending'; }).pop(); if (p) showVault(p); }
+    if (e.key === 'Escape') { document.getElementById('vault').style.display = 'none'; document.getElementById('board').style.display = 'none'; }
+  });
+
+  function refresh() {
+    return api('/api/state').then(function (s) {
+      state = s;
+      document.getElementById('goldv').textContent = s.treasury.gold;
+      if (!battle) { document.getElementById('idle').style.display = 'block'; drawParty([]); }
+      return s;
+    });
+  }
+
+  // ---- Live events ----
+  var MOVE = { SCAN: 'uses SCAN on', FORGE: 'casts FORGE on', TRIAL: 'calls a TRIAL:', CAST: 'casts', SCRY: 'SCRYs', SUMMON: 'SUMMONS', INVOKE: 'INVOKES', USE: 'uses' };
+  function onEvent(e) {
+    if (e.type === 'battle_start') {
+      battle = { id: e.battle, quest: e.quest, party: e.party, hp: e.quest.hp, maxHp: e.quest.maxHp };
+      document.getElementById('vault').style.display = 'none';
+      document.getElementById('idle').style.display = 'none';
+      var q = quest(e.quest.id) || { id: e.quest.id, name: e.quest.name, kind: e.quest.kind, type: e.quest.questType, level: e.quest.level };
+      drawQuest(q, e.quest.hp, e.quest.maxHp); drawHeroes(e.party); drawParty(e.party);
+      banner(e.quest.name + ' appears!');
+    } else if (e.type === 'turn' && battle) {
+      drawHeroes(battle.party, e.hero); var c = hero(e.hero); if (c) say(c.name + ' acts…');
+    } else if (e.type === 'action') {
+      var h = hero(e.hero), who = h ? h.name : e.hero;
+      if (e.allowed === false) { banner('The Gatekeeper blocks ' + who + '!'); say('🛡 ' + who + ': ' + (e.reason || 'blocked'), 'gold'); return; }
+      banner(who + ' ' + (MOVE[e.move] || 'uses') + ' ' + e.target); say(who + ' ' + (MOVE[e.move] || 'uses') + ' ' + e.target);
+    } else if (e.type === 'save_point') {
+      say('💾 Save point ' + e.sha, 'label');
+    } else if (e.type === 'verdict' && battle) {
+      var dmg = battle.hp - e.hp; battle.hp = e.hp;
+      var q2 = quest(battle.quest.id) || battle.quest; drawQuest({ id: battle.quest.id, name: battle.quest.name, kind: battle.quest.kind, type: battle.quest.questType, level: battle.quest.level }, e.hp, e.maxHp);
+      if (dmg > 0) pop('-' + dmg + ' HP', 300, 200); else pop('MISS', 300, 220, true);
+      say('Judged by ' + e.judgedBy + ': ' + e.outcome.toUpperCase(), e.outcome === 'victory' ? 'gold' : '');
+      if (e.outcome === 'victory') { drawHeroes(battle.party, null, 'victory'); banner('★ VICTORY ★'); }
+    } else if (e.type === 'battle_end' && battle) {
+      Object.keys(e.xp || {}).forEach(function (id) { var c = hero(id); if (c && e.xp[id]) say(c.name + ' +' + e.xp[id] + ' EXP', 'gold'); });
+      (e.promotions || []).forEach(function (id) { var c = hero(id); banner('🎺 ' + (c ? c.name : id) + ' was promoted!'); });
+      var id = battle.id;
+      refresh().then(function () { var b = state.battles.filter(function (x) { return x.id === id; })[0]; if (b && b.review === 'pending') setTimeout(function () { showVault(b); }, 900); });
+    } else if (e.type === 'say' && e.text && /Gatekeeper|Save point|appears|acts…|EXP/.test(e.text) === false && battle && e.battle === battle.id) {
+      if (/Treasure Vault|thrown away|wait for you|Not a git/.test(e.text)) say(e.text, 'quiet');
+    } else if (e.type === 'review') {
+      say(e.decision === 'kept' ? '📦 Kept.' : '🗑 Undone.', 'label'); refresh();
+    }
+  }
+
+  refresh().then(function () {
+    var es = new EventSource('/api/events?t=' + T);
+    es.onmessage = function (m) { try { onEvent(JSON.parse(m.data)); } catch (err) { console.error(err); } };
+  });
+})();
+</script>
+</body>
+</html>

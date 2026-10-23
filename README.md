@@ -35,6 +35,14 @@ node src/cli.ts demo          # Node ≥ 22.18, zero runtime dependencies
 
 The demo runs 40 simulated battles. One fighter is reliable, one is sloppy, and a cleric judges them. Watch who gets promoted.
 
+## See it in your browser
+
+```bash
+node src/cli.ts play --demo   # a simulated party fights three quests; open the link it prints
+```
+
+![The battle screen](assets/brand/battle.png)
+
 ## Play for real
 
 ```bash
@@ -91,7 +99,7 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import. 41 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the first browser screen (`savepoint play`). 43 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild
