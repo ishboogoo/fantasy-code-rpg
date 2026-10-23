@@ -123,6 +123,10 @@ Wanted most: CLI adapter testers, a pixel-art web UI, an MCP server for the Chro
 
 MIT
 
+## Design a hero or a monster
+
+Every task in the game is a monster, and the best ones come from folklore whose legend matches a real coding problem: a Hydra is a bug that keeps coming back. Heroes, races, outfits and monsters are all open for design. Read the [art guide](docs/ART_GUIDE.md), then open a **🧝 Hero design** or **👾 Enemy design** issue. Sketches and words are enough.
+
 ## Status and safety
 
 This is an **alpha**. Claude Code support has been tested on a real install (2.1.309). Codex and Gemini CLI support follows their documented hook systems but hasn't been tested on real installs yet; until it is, keep those heroes at low ranks. Heroes work in private git copies of your project, and nothing reaches your folder until you choose Keep, but start in a project you can afford to break. See [SECURITY.md](SECURITY.md).

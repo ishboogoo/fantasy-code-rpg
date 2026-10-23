@@ -38,6 +38,8 @@ Changing a number in the rulebook? Include in the PR:
 
 ## Art, sound and writing
 
+Designing heroes or monsters? Start with [docs/ART_GUIDE.md](docs/ART_GUIDE.md) and the **🧝 Hero design** / **👾 Enemy design** issue templates. Sketches and words are welcome; you don't need finished pixel art.
+
 Original work only. Inspired by the era is great; ripped sprites, music or proprietary character names are not. Put assets under `assets/` with a note of the licence you're contributing them under (CC-BY-4.0 or CC0 preferred).
 
 ## Commit and PR style

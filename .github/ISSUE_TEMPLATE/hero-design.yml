@@ -1,0 +1,49 @@
+name: "🧝 Hero design (character, job, race or look)"
+description: Propose a hero look, a new race, a job outfit or a whole character concept
+labels: ["art", "design:hero"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for designing for the guild! Read [docs/ART_GUIDE.md](../blob/main/docs/ART_GUIDE.md) first: it has the palette, the sprite sizes and the rules.
+        Sketches, mood boards and words are all welcome. You don't need finished pixel art.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What are you proposing?
+      options: ["A look for an existing job (Fighter, Mage, Cleric, Thief, Bard)", "A new race", "A new job", "A named character concept", "Something else"]
+    validations: { required: true }
+  - type: input
+    id: name
+    attributes: { label: "Name", placeholder: "e.g. Rune-Smith, Moth-folk, Kaede the Archivist" }
+    validations: { required: true }
+  - type: textarea
+    id: concept
+    attributes:
+      label: The idea
+      description: Who are they? What do they look like at each rank (Novice → rank 4)? What personality or role in the guild?
+    validations: { required: true }
+  - type: textarea
+    id: reality
+    attributes:
+      label: What would they do in real coding work? (for a new job)
+      description: Every job maps to real work, such as Fighter = builds, Cleric = reviews and tests. Leave empty for looks and races.
+  - type: textarea
+    id: art
+    attributes:
+      label: Sketches, references or pixel art
+      description: Drag images here. Battle sprites are 42 × 54 px, portraits 64 × 64 px, using the palette in the guide.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: The rules
+      options:
+        - label: This is my original work (or I describe it only in words). It doesn't copy existing games, characters, logos or artists.
+          required: true
+        - label: Every character is an adult, and nothing is sexually explicit.
+          required: true
+        - label: I license my art and text here under CC-BY-4.0 (or CC0), so it can ship in the game with credit.
+          required: true
+  - type: input
+    id: credit
+    attributes: { label: "How should we credit you?", placeholder: "Name or handle, optional link" }
