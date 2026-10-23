@@ -6,7 +6,7 @@ Fantasy Code RPG looks like a 1990s Japanese 16-bit RPG drawn inside green falli
 
 ## How to submit
 
-1. Open an issue with the **🧝 Hero design** or **👾 Enemy design** template (New issue → pick the template).
+1. Open an issue with the **🧝 Hero design** or **👾 Enemy design** template (New issue → pick the template). For card backgrounds and frames, use the Hero design template and choose "Something else".
 2. Describe the idea, attach sketches or pixel art if you have them, and tick the rules.
 3. The design is discussed in the issue. Accepted designs get a `quest` label so someone can build them, and you're credited in the README when they ship.
 
@@ -79,6 +79,26 @@ Monsters face **left**, toward the party. Sizes: 32, 48, 64 or 96 px (a boss may
 | rose | `#a03860` `#e06088` `#ff90b0` `#ffd0e0` |
 | code | `#0a3a1e` `#1f8a3c` `#7dff9a` `#e8ffe8` |
 
+## Card art
+
+Every hero has a **hero card**: a 600 × 840 trading card that players share to show off their hero and that other players recruit the hero from. Its big artwork window is the best place for community art.
+
+| Piece | Size | Where it goes | What it is |
+| --- | --- | --- | --- |
+| Background | 540 × 360 (or larger, same 3:2 shape) | `assets/cards/` + `"backgrounds"` in `manifest.json`, keyed by job (`fighter`, `mage`, `cleric`, `thief`, `bard`) or `default` | The scene behind the hero's sprite |
+| Rank frame | 600 × 840, transparent where the art and text go | `assets/cards/` + `"frames"` in `manifest.json`, keyed by rank: `novice`, `bronze`, `silver`, `gold`, `mythic` | The border, a grander one per rank |
+| Hero art | Any size, 3:2 works best | Set by the player (Tavern → hero → SET CARD ART, or `fcrpg art <hero> <image>`) | A player's own artwork for their hero. Stays on their computer. |
+
+Layout to respect in a frame: the art window is the box from (30, 96) to (570, 456); the name sits above it, and the stats, skills and credit line below. PNG only. Add your credit to `"credits"` in the manifest when you open the pull request.
+
+```json
+{
+  "backgrounds": { "mage": "bg-mage-starfall.png", "default": "bg-guild-hall.png" },
+  "frames": { "gold": "frame-gold-filigree.png" },
+  "credits": ["bg-mage-starfall.png: Starfall Library by @yourname (CC-BY-4.0)"]
+}
+```
+
 ## From design to game (for builders)
 
 - Heroes are drawn by `assets/generators/hero.cjs` (job, race, build, rank → pixels); portraits by `portrait.cjs`; monsters by `foe.cjs`, one `if (kind === '…')` block each.
@@ -91,6 +111,7 @@ Monsters face **left**, toward the party. Sizes: 32, 48, 64 or 96 px (a boss may
 
 ギルドの仲間（キャラクター・種族・職業の衣装）や、モンスターのデザインを募集しています。ドット絵が描けなくても大丈夫です。スケッチや文章だけでも歓迎します。
 
+- **カードの絵：** ヒーローカード（600×840）の背景（540×360、職業ごと）とランクの枠（600×840、透明な窓つき）も募集しています。
 - **応募方法：** Issue を作成し、「🧝 Hero design」または「👾 Enemy design」のテンプレートを選んでください。
 - **モンスターは実際の問題を表します。** スライムは誤字、ゴブリンは小さなバグ、リッチはときどき失敗するテスト。民話や神話（ぬりかべ、狐、ヒュドラなど）の伝承が、プログラミングの問題とぴったり重なるものが理想です。
 - **ルール：** オリジナル作品のみ（既存のゲーム・キャラクター・ロゴの模写は不可）。登場人物はすべて大人で、性的に露骨な表現は不可。投稿したデザインは CC-BY-4.0（または CC0）で提供し、採用時にはクレジットを記載します。

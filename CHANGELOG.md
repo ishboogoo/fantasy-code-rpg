@@ -2,6 +2,15 @@
 
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org/); until 1.0, a minor version may change how saved guilds or commands work, and the notes will say how.
 
+## [0.2.5]
+
+### Added
+- **Hero cards.** Click a hero in the Tavern to see their card: a shareable trading card with a big artwork window, rank frame, trust, wins by kind of quest, skills, and links to the real commits behind it all. SHARE CARD saves it as a PNG and copies it. `fcrpg card <hero>` shows it in the terminal and saves a `.hero.json`.
+- **Card art.** Set your own artwork for a hero (SET CARD ART, or `fcrpg art <hero> <image>`). Community backgrounds and rank frames can ship in `assets/cards/` (see the art guide).
+- **Skills.** After each battle the scribe may note up to two general working habits the heroes showed; they appear in the heroes' prompts as suggestions and travel with them.
+- **Proof.** Keeping a battle records the commit, quest and repository on the heroes who did the work.
+- **Travelling heroes.** The card PNG carries the hero inside it. RECRUIT FROM A CARD in the Tavern, or `fcrpg recruit --from <card.png|hero.json>`, brings that hero into your guild as a **veteran on probation**: level, title, career and skills come along; rank starts at 1 at most; their record elsewhere counts as a discounted head start (a quarter, at most 10 battles' worth) toward promotion. They run on your own AI connection. Shared files are read strictly and their text is shown as suggestions, never rules.
+
 ## [0.2.4]
 
 ### Fixed

@@ -374,8 +374,12 @@
     var list = G.win(12, 12, 560, 624, 'scroll');
     list.appendChild(el('div', 'h1', t('tavern')));
     if (!G.state.party.length) list.appendChild(el('div', 'quiet', t('tavernEmpty')));
+    if (G.state.party.length) list.appendChild(el('div', 'quiet', t('cardHint')));
     G.state.party.forEach(function (c) {
-      var row = el('div'); row.style.cssText = 'display:flex;gap:12px;align-items:center;margin:8px 0';
+      var row = el('div'); row.style.cssText = 'display:flex;gap:12px;align-items:center;margin:8px 0;cursor:pointer';
+      row.setAttribute('role', 'button'); row.tabIndex = 0;
+      row.addEventListener('click', function () { G.go('card', { id: c.id }); });
+      row.addEventListener('keydown', function (e) { if (e.key === 'Enter') { G.go('card', { id: c.id }); e.preventDefault(); } });
       row.appendChild(G.portraitCanvas(c));
       var d = el('div'); d.innerHTML = '<div class="h1"></div><div class="quiet"></div><div class="label"></div>';
       d.children[0].textContent = c.name; d.children[1].textContent = G.title(c.title) + ' · ' + t('level') + ' ' + c.level + ' · ' + t('poweredBy') + ' ' + c.company;
@@ -414,10 +418,78 @@
         G.cmd('recruit', { name: name.value, job: job.value, adapter: conn.value, race: race.value, build: build.value })
           .then(function (r) { G.toast(r.message); G.go('tavern'); });
       } },
+      { label: t('fromCard'), action: function () { pickFile('image/png,application/json,.json', importFromCard); } },
       { label: t('toTown'), action: function () { G.go('town'); } },
     ], { row: true, small: true });
     drawPreview();
     if (params.welcome) name.focus();
+
+    // A hero someone shared: show who they are and what they bring, then recruit on this guild's own connection.
+    function importFromCard(b64) {
+      G.cmd('heroPreview', { data: b64 }).then(function (r) {
+        var box = G.win(240, 120, 672, 420); box.setAttribute('role', 'alertdialog');
+        box.appendChild(el('div', 'h1', t('traveller')));
+        var body = el('div'); body.style.cssText = 'white-space:pre-wrap;font-size:15px;line-height:22px;max-height:250px;overflow:auto'; body.textContent = r.lines.join('\n'); box.appendChild(body);
+        var row = el('label'); row.style.cssText = 'display:flex;gap:10px;align-items:center;margin:10px 0';
+        row.appendChild(el('span', 'label', t('runsOn')));
+        var sel = el('select'); [].forEach.call(conn.options, function (o) { var x = el('option', '', o.textContent); x.value = o.value; x.disabled = o.disabled; sel.appendChild(x); });
+        sel.value = (r.adapter && !conn.querySelector('option[value="' + r.adapter + '"]:disabled')) ? r.adapter : conn.value; row.appendChild(sel); box.appendChild(row);
+        var acts = el('div'); box.appendChild(acts);
+        G.menu(acts, [
+          { label: t('recruitThem'), action: function () { G.cmd('heroImport', { data: b64, adapter: sel.value }).then(function (x) { G.toast(x.message); G.go('tavern'); }); } },
+          { label: t('cancel'), action: function () { G.go('tavern'); } },
+        ], { row: true, small: true });
+      }).catch(function () {});
+    }
+  };
+
+  /** Ask for a file and hand it over as base64. */
+  function pickFile(accept, done) {
+    var input = el('input'); input.type = 'file'; input.accept = accept; input.style.display = 'none';
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0]; input.remove(); if (!f) return;
+      if (f.size > 2 * 1024 * 1024) { G.toast(G.t('tooLarge'), true); return; }
+      f.arrayBuffer().then(function (buf) { done(G.bytesToBase64(new Uint8Array(buf))); });
+    });
+    document.body.appendChild(input); input.click();
+  }
+
+  // ---- Hero card: the stats screen, with shareable artwork ----
+  S.card = function (params) {
+    var c = G.state.party.filter(function (x) { return x.id === params.id; })[0];
+    if (!c) { G.go('tavern'); return; }
+    var left = G.win(12, 12, 456, 624); left.style.display = 'flex'; left.style.alignItems = 'center'; left.style.justifyContent = 'center';
+    left.appendChild(el('div', 'quiet', '…'));
+    G.cardCanvas(c).then(function (cv) {
+      left.innerHTML = ''; cv.style.cssText = 'width:420px;height:588px;image-rendering:auto'; cv.setAttribute('aria-label', c.name); left.appendChild(cv);
+    });
+    var right = G.win(480, 12, 660, 624, 'scroll');
+    right.appendChild(el('div', 'h1', t('heroCard') + ' · ' + c.name));
+    right.appendChild(el('div', 'quiet', G.title(c.title) + ' · ' + t('level') + ' ' + c.level + ' · ' + t('poweredBy') + ' ' + c.company));
+    var k = c.career || { wins: 0, losses: 0, guilds: 1, byType: {} };
+    right.appendChild(el('div', '', t('cardRecord', { won: k.wins, lost: k.losses, guilds: k.guilds })));
+    Object.keys(k.byType || {}).forEach(function (ty) { right.appendChild(el('div', 'quiet', G.type(ty.charAt(0).toUpperCase() + ty.slice(1)) + ': ' + k.byType[ty].won + ' / ' + (k.byType[ty].won + k.byType[ty].lost))); });
+    right.appendChild(el('div', 'label', t('cardSkills')));
+    (c.skills || []).forEach(function (sk) { right.appendChild(el('div', '', '• ' + sk)); });
+    if (!(c.skills || []).length) right.appendChild(el('div', 'quiet', t('cardNoSkills')));
+    if (c.proofCount) {
+      right.appendChild(el('div', 'label', t('cardProof', { n: c.proofCount })));
+      c.proof.forEach(function (p) {
+        var line = el('div', 'quiet', p.quest + ' · ' + p.commit.slice(0, 7));
+        if (p.repo) { var a = el('a', '', ' ↗'); a.href = p.repo + '/commit/' + p.commit; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.color = 'var(--code3)'; line.appendChild(a); }
+        right.appendChild(line);
+      });
+    }
+    if (c.veteran) right.appendChild(el('div', 'gold', t('cardVeteran')));
+    var note = el('div', 'quiet', t('artHelp')); note.style.cssText = 'font-size:13px;line-height:18px;margin-top:10px'; right.appendChild(note);
+    var acts = el('div'); acts.style.marginTop = '8px'; right.appendChild(acts);
+    var items = [
+      { label: t('shareCard'), action: function () { G.shareCard(c).catch(function () { G.toast(t('snapFail'), true); }); } },
+      { label: t('setArt'), action: function () { pickFile('image/png,image/jpeg,image/gif,image/webp', function (b64) { G.cmd('setArt', { id: c.id, data: b64 }).then(function (r) { G.toast(r.message); G.go('card', { id: c.id }); }); }); } },
+    ];
+    if (c.art) items.push({ label: t('removeArt'), action: function () { G.cmd('setArt', { id: c.id, off: true }).then(function () { G.go('card', { id: c.id }); }); } });
+    items.push({ label: t('back'), action: function () { G.go('tavern'); } });
+    G.menu(acts, items, { small: true });
   };
 
   // ---------------- Inn (MP) ----------------
