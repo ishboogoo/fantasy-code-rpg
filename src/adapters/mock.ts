@@ -80,6 +80,8 @@ export const mock: Adapter = {
     }
     if (req.prompt.startsWith("[SEER]")) {
       const material = req.prompt.split("Material")[1] ?? "";
+      if (/one word from: .*risky/.test(req.prompt)) return { output: /delete|money|prod|password/i.test(material) ? "risky" : "routine", costGold, costMp: 0, turns: 1 };
+      if (/one word from: .*retreat/.test(req.prompt)) return { output: /changed this turn: no/.test(material) ? "retreat" : "continue", costGold, costMp: 0, turns: 1 };
       const word = /crash|bug|fail|broken/i.test(material) ? "fix" : /guide|docs?|readme/i.test(material) ? "write" : /which|should we|compare/i.test(material) ? "explore" : "build";
       return { output: word, costGold, costMp: 0, turns: 1 };
     }

@@ -109,6 +109,8 @@ Folders that aren't git repositories with a commit fall back to running in place
 
 `Council.decide(kind, question, seats, questId)` asks the seats in order. A seat returns `{answer, confidence, reasons}` or `null`. The first answer at or above the bar for that kind wins; otherwise the decision goes to you with the most confident answer as a suggestion. Every decision is appended to `chronicle/decisions.jsonl`; `markOutcome()` appends right/wrong to `outcomes.jsonl` (latest mark wins), and `accuracy()` reports each seat's record. Seats are plain functions, so adding the Seer (a cheap model) or the Trial (cross-company vote) is adding a function, not changing the cascade.
 
+Decisions the loop asks today: quest type (Clerk, `request`), party lead (`recommendParty`), risk (`assessRisk`, after the War Room plan), stuck (`stuckCall`, between Relay turns) and compare (Pincer). Async seats such as the Seer are asked first only when the Law isn't sure, and their answer is passed into `decide()` as a plain function. The Seer's answers for risk and stuck are words from a fixed list, asked three times with the options rotated; only a unanimous answer clears the bar.
+
 ## Judging
 
 The current judge (in `battle.ts`): run every check first; then `chooseJudges()` picks up to three judges, one per AI company before doubling up, never anyone who fought. `anonymize()` hides names, ids, adapters and models from the evidence (scroll + diff). Each judge sees the conditions in a rotated order and returns a verdict per condition; each condition is a `proof` decision for the Council that needs a unanimous vote, and a split goes to you. Conditions with `proof: "human"` are left for the Treasure Vault, where Keep confirms them.

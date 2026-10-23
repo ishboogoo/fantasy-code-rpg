@@ -21,7 +21,7 @@ Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
 | ✅ **Quest types** and proof per victory condition | 👺 | `src/quests.ts` |
 | ✅ **The Council**, seats 1–2 (Law, Ledger) with decision records and outcomes | 🐗 | `src/council.ts`, `src/ledger.ts` |
 | Council seat 3: **the Seer** adapter (Jev, Arch-Router, or a small model asked 3×) | 👺 | See docs/DESIGN_PLAN.md §8–9 |
-| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | ✅ **Siege**: a quest split into parts fought at once and joined (`savepoint split`, `--formation siege`) |
+| ✅ Council seat 4: **fair cross-company judge** (authors hidden, order rotated, unanimous vote per condition) and **Pincer** side-by-side comparison | 🐗 | ✅ Risky quests flagged and stuck battles watched (carry on, retreat, or call for help). ✅ **Siege**: a quest split into parts fought at once and joined (`savepoint split`, `--formation siege`) |
 | ✅ **Clerk, Scout and Plan** (`request`, `answer`, `plan`, `approve`) and play styles | 🐗 | Next: import from GitHub Issues |
 | Enemy state machine: lurking → engaged → review → defeated / enraged (retrying) / escaped | 👺 | See ORCH in docs/CROSS_REFERENCE.md |
 | **Battlefield**: file globs a battle may touch; edits outside = violation | 👺 | Extend `gate.ts` |

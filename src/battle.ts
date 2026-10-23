@@ -6,13 +6,14 @@ import { ADAPTERS } from "./adapters/index.ts";
 import { runProcess } from "./adapters/adapter.ts";
 import { canAfford, refillMp, spend } from "./economy.ts";
 import {
-  JOB_ROLE, gainXp, performance, permissionsFor, recordFor, settleTier, title, trialFor, xpAward,
+  JOB_ROLE, gainXp, performance, permissionsFor, recordFor, reliability, settleTier, title, trialFor, xpAward,
 } from "./rules.ts";
 import type { Store } from "./store.ts";
 import type { BattleReport, Character, Enemy, Formation, InstanceInfo, Outcome, SiegePart, Verdict, World } from "./types.ts";
 import { canIsolate, createInstance, discard, keep, savePoint, changes, mergeInto } from "./instance.ts";
 import { proofOf, questTypeOf } from "./quests.ts";
-import { debrief, lastJson } from "./stages.ts";
+import { debrief, lastJson, stuckCall, type StuckCall } from "./stages.ts";
+import { QUEST_TYPES } from "./quests.ts";
 import { vendor } from "./party.ts";
 import type { Council, SeatAnswer } from "./council.ts";
 import { AskBook, NEED_WORDS } from "./asks.ts";
@@ -375,6 +376,15 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   }
   const fightDir = inst?.path ?? cwd;
 
+  // The Council's watch over a Relay: after each turn, is the party getting somewhere?
+  const watch = opts.council && opts.formation !== "pincer" && opts.formation !== "siege";
+  const withChecks = enemy.criteria.filter((k) => k.check);
+  const allByChecks = withChecks.length > 0 && withChecks.length === enemy.criteria.length;
+  let passing = watch && withChecks.length ? (await runChecks(enemy, fightDir)).size : 0;
+  let idleStreak = 0, turnNo = 0;
+  const calls: Array<{ id: string; call: StuckCall }> = [];
+  const acted = new Set<string>();
+
   for (const c of opts.formation === "pincer" || opts.formation === "siege" ? [] : party) {
     const perms = permissionsFor(c.tier);
     const goldLimit = Math.min(budgetGold - costGold, perms.maxGoldPerBattle);
@@ -384,6 +394,8 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     emit({ type: "turn", hero: c.id });
     const before = store.violationCount(c.id);
     const r = await ADAPTERS[c.adapter].run({ character: c, prompt: buildPrompt(c, enemy, store), cwd: fightDir, permissions: perms, maxTurns, goldLimit, home: store.root, questId: enemy.id });
+    let changed = false;
+    acted.add(c.id);
     const blocked = store.violationCount(c.id) - before;
     if (blocked > 0 && !r.violation) r.violation = `was stopped by the Gatekeeper ${blocked} time(s)`;
     spend(world, c, r.costGold, r.costMp);
@@ -391,7 +403,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     store.writeScroll(enemy.id, `${c.name} (${title(c)})`, r.output || `(no output${r.error ? ": " + r.error : ""})`);
     if (inst) {
       const sp = await savePoint(inst, `${c.name} (${title(c)}) on ${enemy.id}`);
-      if (sp) { say(`  💾 Save point ${sp.slice(0, 8)}`); emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) }); }
+      if (sp) { changed = true; say(`  💾 Save point ${sp.slice(0, 8)}`); emit({ type: "save_point", hero: c.id, sha: sp.slice(0, 8) }); }
     }
     if (r.violation) { critical = `${c.name} ${r.violation}`; say(`  ⚠️  ${critical}`); break; }
     if (r.error) say(`  ✖ ${r.error}`);
@@ -406,8 +418,42 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
         store.writeScroll(enemy.id, "Guild Master", `${c.name} needed to ${NEED_WORDS[a.need]} (${a.target}). ${next.name} takes over; read ${c.name}'s notes above.`);
       }
     }
+
+    if (!watch) continue;
+    turnNo++;
+    idleStreak = changed ? 0 : idleStreak + 1;
+    const passBefore = passing;
+    if (changed && withChecks.length) passing = (await runChecks(enemy, fightDir)).size;
+    // Every condition is proven by a check and all pass: the rest of the party stands down.
+    if (allByChecks && passing === withChecks.length) { if (party.indexOf(c) < party.length - 1) say("  ✅ Every check passes, so the rest of the party stands down."); break; }
+    const need = QUEST_TYPES[questTypeOf(enemy)].needs;
+    const top = Math.max(...party.map((x) => x.tier));
+    const helper = party.length < 4 ? world.party
+      .filter((x) => !party.includes(x) && x.tier > top && permissionsFor(x.tier)[need] && !canAfford(world, x, 0.01, x.mp ? 1 : 0))
+      .sort((a2, b2) => reliability(recordFor(b2)) - reliability(recordFor(a2)))[0] : undefined;
+    const isLast = party.indexOf(c) === party.length - 1;
+    if (isLast && !helper) continue;
+    const verdictCall = await stuckCall(world, store, opts.council!, enemy, fightDir, {
+      turn: turnNo, changed, passingBefore: passBefore, passingAfter: passing, checks: withChecks.length, idleStreak,
+      spentShare: budgetGold ? costGold / budgetGold : 1, error: r.error, helper, needsWrite: need !== "read",
+    });
+    const d = opts.council!.decisions().filter((x) => x.kind === "stuck" && x.questId === enemy.id).at(-1);
+    if (d) calls.push({ id: d.id, call: verdictCall.call });
+    if (verdictCall.call === "retreat") {
+      say(`  🏳 The Council calls a retreat: ${verdictCall.why}.`);
+      store.writeScroll(enemy.id, "The Council", `Retreat after turn ${turnNo}: ${verdictCall.why}.`);
+      break;
+    }
+    if (verdictCall.call === "help" && helper) {
+      refillMp(helper);
+      party.splice(party.indexOf(c) + 1, 0, helper); // the helper takes the very next turn
+      say(`  📯 The Council calls for help: ${verdictCall.why}. ${helper.name} the ${title(helper)} joins.`);
+      store.writeScroll(enemy.id, "The Council", `${helper.name} joins after turn ${turnNo}: ${verdictCall.why}. Read the notes above.`);
+    }
   }
 
+  // Heroes who never got a turn (the party stood down or retreated early) share neither the reward nor the blame.
+  if (watch && acted.size) party.splice(0, party.length, ...party.filter((c) => acted.has(c.id)));
   const verdict = await judgeBattle(opts, enemy, party, fightDir, inst);
   const judgeGold = verdict.costGold; // the referee's fee doesn't count against the party's budget
 
@@ -486,6 +532,9 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
       opts.council.markOutcome(d.id, verdict.outcome === "victory" ? "right" : "wrong", `battle ${battleId}`);
     }
   }
+
+  // Calls to carry on or bring help were right if the quest was won. (A retreat can't be checked: we never see what would have happened.)
+  for (const x of calls) if (x.call !== "retreat" && verdict.outcome !== "retreat") opts.council!.markOutcome(x.id, verdict.outcome === "victory" ? "right" : "wrong", `battle ${battleId}`);
 
   if (opts.debrief && verdict.outcome !== "critical") {
     const lessons = await debrief(world, store, enemy, verdict.awaitingYou.length ? "waiting for the Guild Master to check" : `${verdict.outcome} (${verdict.notes})`, party.map((c) => c.id), cwd);

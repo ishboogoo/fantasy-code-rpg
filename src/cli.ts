@@ -206,7 +206,7 @@ async function main(): Promise<void> {
     case "plan": {
       const q = world.enemies.find((e) => e.id === rest[0]);
       if (!q) throw new Error("Usage: plan <quest>");
-      const r = await warRoom(world, store, q, cwd);
+      const r = await warRoom(world, store, q, cwd, undefined, council);
       save();
       console.log(warRoomWindow(q, r));
       console.log(nextStep(world, q));
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
       const q = world.enemies.find((e) => e.id === rest[0]);
       if (!q) throw new Error("Usage: approve <quest>");
       if (q.questions?.length) throw new Error(`Answer the open questions first: savepoint answer ${q.id} "..."`);
-      q.approved = true;
+      q.approved = true; if (q.risk?.risky) q.riskApproved = true;
       save();
       console.log(`✅ Approved ${q.name}${q.plan ? " and its plan" : ""}. ${nextStep(world, q)}`);
       return;
@@ -254,11 +254,13 @@ async function main(): Promise<void> {
       if (foe?.approved === false) throw new Error(`${foe.name} is waiting for your approval: savepoint approve ${foe.id}`);
       // Story mode: the War Room runs on its own before the battle.
       if (foe && !foe.plan && !needsApproval(world) && !foe.questions?.length) {
-        const wr = await warRoom(world, store, foe, cwd);
+        const wr = await warRoom(world, store, foe, cwd, values.party?.split(",")[0], council);
         save();
         if (wr.scout || wr.planner) console.log(`🗺  War Room: ${[wr.scout && `${wr.scout} scouted`, wr.planner && `${wr.planner} planned`].filter(Boolean).join(", ")}.`);
         if (wr.verdict === "split") console.log(warRoomWindow(foe, wr)); // a split is planned as a Siege and fought right away
         else if (wr.verdict !== "proceed") { console.log(warRoomWindow(foe, wr)); console.log(nextStep(world, foe)); return; }
+        // Even in story mode, a risky quest waits for your nod.
+        if ((foe.approved as boolean | undefined) === false) { if (wr.verdict !== "split") console.log(warRoomWindow(foe, wr)); console.log(nextStep(world, foe)); return; }
       }
       let partyIds = (values.party ?? "").split(",").filter(Boolean);
       let j = values.judge ?? "auto";
@@ -372,7 +374,8 @@ function questWindow(q: Enemy, title: string): string {
 
 function warRoomWindow(q: Enemy, r: { verdict: string; scout?: string; planner?: string; questions: string[]; splits: string[] }): string {
   const lines = [`${q.id} · ${q.name}`];
-  if (r.scout) lines.push(`Scout: ${r.scout} → ${r.verdict === "proceed" ? "clear to proceed" : r.verdict === "unclear" ? "unclear, needs your answer" : "really several quests"}`);
+  if (r.scout) lines.push(`Scout: ${r.scout} → ${r.verdict === "proceed" ? "clear to proceed" : r.verdict === "unclear" ? "unclear, needs your answer" : "splits into parts"}`);
+  if (q.risk?.risky) lines.push(`⚠ Risky: ${q.risk.reasons.join("; ")}.`, `  It needs your nod (savepoint approve ${q.id}), and a Pincer is worth considering: --formation pincer`);
   if (r.verdict === "split" && q.parts) lines.push("It splits into parts that can be fought at the same time (a Siege):", ...q.parts.map((p) => `  • ${p.name}${p.criteria.length ? ` [${p.criteria.join(", ")}]` : ""}`), `Fight them all at once: savepoint battle ${q.id} --formation siege · change the parts: savepoint split ${q.id} --part "name: c1,c2"`);
   if (r.verdict === "unclear") lines.push(...(q.questions ?? []).map((x) => `  ? ${x}`));
   if (q.plan) lines.push(`Plan by ${r.planner}:`, ...q.plan.split("\n").slice(0, 12).map((x) => `  ${x}`));

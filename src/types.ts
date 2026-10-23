@@ -76,6 +76,10 @@ export interface Enemy {
   /** The War Room's read-only scouting report and plan, handed to the party. */
   scouting?: string;
   plan?: string;
+  /** The Council's view of how costly a mistake here would be. Risky quests need your nod and suggest a Pincer. */
+  risk?: { risky: boolean; reasons: string[]; seat: string };
+  /** You approved this quest after it was marked risky. */
+  riskApproved?: boolean;
   /** Siege: the quest split into parts fought at the same time, each in its own copy. */
   parts?: SiegePart[];
 }

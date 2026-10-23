@@ -9,7 +9,7 @@ import { classify } from "./gate.ts";
 import { permissionsFor } from "./rules.ts";
 import { QUEST_TYPES, classifyByRules, questTypeOf } from "./quests.ts";
 import { spend } from "./economy.ts";
-import type { Council } from "./council.ts";
+import type { Council, SeatAnswer } from "./council.ts";
 import type { Store } from "./store.ts";
 import type { Character, Criterion, Enemy, EnemyKind, PlayStyle, QuestType, Settings, SiegePart, World } from "./types.ts";
 
@@ -195,6 +195,99 @@ export async function seer(world: World, store: Store, cwd: string, question: st
   return { answer, agreement: n / times, votes, by: s.name, costGold };
 }
 
+// ---------- The Council's watch: risky quests and stuck battles ----------
+
+/** Words that mean a mistake would be costly or hard to undo. One is a hint; two different ones settle it. */
+const RISK_WORDS: Array<[RegExp, string]> = [
+  [/\b(migrat\w*|schema change|drop table|alter table)\b/i, "changes the database"],
+  [/\b(delet\w*|remov\w* (all|every)|wipe|purge|truncate|rm -rf)\b/i, "deletes things"],
+  [/\b(payments?|billing|invoice|checkout|stripe|refund)\b/i, "touches money"],
+  [/\b(auth\w*|login|password|session|token|permission|oauth|security|encrypt\w*)\b/i, "touches security"],
+  [/\b(secrets?|credentials?|api keys?|\.env)\b/i, "touches secrets"],
+  [/\b(production|prod|deploy\w*|release|live site)\b/i, "reaches production"],
+  [/\b(force[- ]push|rewrite history|rebase main)\b/i, "rewrites history"],
+];
+
+export function riskWords(text: string): string[] {
+  return [...new Set(RISK_WORDS.filter(([re]) => re.test(text)).map(([, why]) => why))];
+}
+
+/**
+ * Is this quest risky? The Law reads the request, conditions and plan for costly words and remembers
+ * quests that beat a party before; the Seer settles the unclear cases. A risky quest needs your nod
+ * (in every play style) and the War Room suggests a Pincer.
+ */
+export async function assessRisk(world: World, store: Store, council: Council, quest: Enemy, cwd: string): Promise<Enemy["risk"]> {
+  const text = [quest.name, quest.description, ...quest.criteria.map((k) => k.description), quest.plan ?? ""].join("\n");
+  const words = riskWords(text);
+  const lostBefore = world.battles.some((b) => b.enemyId === quest.id && (b.verdict.outcome !== "victory" || b.review === "undone"));
+  const law = (): SeatAnswer<"risky" | "routine"> | null => {
+    if (lostBefore) return { answer: "risky", confidence: 0.95, reasons: ["It has beaten a party before"] };
+    if (words.length >= 2) return { answer: "risky", confidence: 0.95, reasons: words.map((w) => `It ${w}`) };
+    if (words.length === 1) return { answer: "risky", confidence: 0.8, reasons: [`It ${words[0]}`] };
+    return { answer: "routine", confidence: quest.level <= 3 ? 0.95 : 0.7, reasons: ["Nothing costly or hard to undo is mentioned"] };
+  };
+  const first = law();
+  const vote = first && first.confidence >= council.bars.risk ? null
+    : await seer(world, store, cwd, "Could a mistake on this quest be costly or hard to undo (lost data, security, money, production)?", ["risky", "routine"], text);
+  const d = council.decide<"risky" | "routine">("risk", `Is ${quest.name} risky?`, {
+    law: () => first,
+    seer: () => vote ? { answer: vote.answer as "risky" | "routine", confidence: vote.agreement, costGold: vote.costGold, reasons: [`The Seer (${vote.by}) said ${vote.answer} ${vote.votes.filter((v) => v === vote.answer).length} of ${vote.votes.length} times`] } : null,
+  }, quest.id);
+  // Unsure counts as risky: asking you once is cheaper than a costly mistake.
+  const answer = d.answer ?? (d.suggestion === "routine" && d.confidence >= 0.7 ? "routine" : "risky");
+  quest.risk = { risky: answer === "risky", reasons: d.reasons, seat: d.seat };
+  if (quest.risk.risky && !quest.riskApproved) quest.approved = false;
+  return quest.risk;
+}
+
+export type StuckCall = "continue" | "retreat" | "help";
+
+export interface TurnSignal {
+  /** The turn just finished; turns start at 1. */
+  turn: number;
+  changed: boolean;
+  /** Checks passing before and after this turn (only counted when the quest has checks). */
+  passingBefore: number; passingAfter: number; checks: number;
+  /** Turns in a row with no file changes. */
+  idleStreak: number;
+  spentShare: number;
+  error?: string;
+  /** Someone stronger who isn't in the party yet and could take over. */
+  helper?: Character;
+  needsWrite: boolean;
+}
+
+/**
+ * Between turns of a Relay: is the party getting somewhere? The Law reads progress, idleness and the
+ * budget; the Seer settles the unclear cases. Nobody blocks the battle to ask you: when unsure, it carries on.
+ */
+export async function stuckCall(world: World, store: Store, council: Council, quest: Enemy, cwd: string, sig: TurnSignal): Promise<{ call: StuckCall; why: string }> {
+  const law = (): SeatAnswer<StuckCall> | null => {
+    if (sig.spentShare >= 0.9) return { answer: "retreat", confidence: 0.95, reasons: ["The budget is nearly spent"] };
+    if (sig.checks && sig.passingAfter > sig.passingBefore) return { answer: "continue", confidence: 0.95, reasons: [`More checks pass now (${sig.passingAfter} of ${sig.checks})`] };
+    if (sig.error) return sig.helper ? { answer: "help", confidence: 0.9, reasons: [`The hero hit an error: ${sig.error.slice(0, 80)}`] } : null;
+    if (sig.needsWrite && sig.idleStreak >= 2) return sig.helper
+      ? { answer: "help", confidence: 0.9, reasons: [`${sig.idleStreak} turns in a row changed nothing`] }
+      : { answer: "retreat", confidence: 0.9, reasons: [`${sig.idleStreak} turns in a row changed nothing, and nobody stronger is free`] };
+    if (sig.changed && !sig.checks) return { answer: "continue", confidence: 0.9, reasons: ["Files are changing and there are no checks to measure them"] };
+    return null; // changed without check progress, or one quiet turn: unclear
+  };
+  const first = law();
+  const options = sig.helper ? ["continue", "retreat", "help"] : ["continue", "retreat"];
+  const material = [`Quest: ${quest.name}`, `Turn ${sig.turn}. Files changed this turn: ${sig.changed ? "yes" : "no"}.`,
+    sig.checks ? `Checks passing: ${sig.passingBefore} before, ${sig.passingAfter} after, of ${sig.checks}.` : "No command checks.",
+    `Budget used: ${Math.round(sig.spentShare * 100)}%.`, "Latest notes:", store.scroll(quest.id).slice(-3000)].join("\n");
+  const vote = first && first.confidence >= council.bars.stuck ? null
+    : await seer(world, store, cwd, "Is this party making progress? continue = keep going, retreat = stop and save the budget, help = bring in a stronger hero.", options, material);
+  const d = council.decide<StuckCall>("stuck", `Is the party stuck on ${quest.name} after turn ${sig.turn}?`, {
+    law: () => first,
+    seer: () => vote && options.includes(vote.answer) ? { answer: vote.answer as StuckCall, confidence: vote.agreement, costGold: vote.costGold, reasons: [`The Seer (${vote.by}) said ${vote.answer} ${vote.votes.filter((v) => v === vote.answer).length} of ${vote.votes.length} times`] } : null,
+  }, quest.id);
+  const call = d.answer ?? "continue";
+  return { call, why: d.answer ? d.reasons.join("; ") : "The Council wasn't sure, so the party carries on" };
+}
+
 // ---------- Debrief: the Library ----------
 
 /**
@@ -241,10 +334,10 @@ export function parsePart(text: string, quest: Enemy, i: number): SiegePart {
 
 // ---------- Scout + Plan: the War Room ----------
 
-export interface WarRoomResult { verdict: "proceed" | "unclear" | "split"; scout?: string; planner?: string; questions: string[]; splits: string[] }
+export interface WarRoomResult { verdict: "proceed" | "unclear" | "split"; scout?: string; planner?: string; questions: string[]; splits: string[]; risk?: Enemy["risk"] }
 
 /** Read-only scouting, then a plan. Stops early when the Scout finds the quest unclear or really several quests. */
-export async function warRoom(world: World, store: Store, quest: Enemy, cwd: string, leadId?: string): Promise<WarRoomResult> {
+export async function warRoom(world: World, store: Store, quest: Enemy, cwd: string, leadId?: string, council?: Council): Promise<WarRoomResult> {
   const conditions = quest.criteria.map((k) => `- [${k.id}] ${k.description} (proof: ${k.proof ?? (k.check ? "command" : "judge")})`).join("\n");
   const scout = pickHelper(world, ["thief", "mage"], new Set(leadId ? [leadId] : []));
   const result: WarRoomResult = { verdict: "proceed", questions: [], splits: [] };
@@ -286,6 +379,7 @@ export async function warRoom(world: World, store: Store, quest: Enemy, cwd: str
     store.writeScroll(quest.id, `${planner.name} (plan)`, text);
   }
   if (needsApproval(world)) quest.approved = false; // a new plan needs your nod
+  if (council) result.risk = await assessRisk(world, store, council, quest, cwd);
   return result;
 }
 

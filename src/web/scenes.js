@@ -214,6 +214,7 @@
 
     function showPlan(qq) {
       mid.innerHTML = '';
+      if (qq.risk && qq.risk.risky) { var rk = el('div', 'warn', '⚠ ' + t('risky') + ' ' + qq.risk.reasons.join('; ')); rk.style.whiteSpace = 'pre-wrap'; mid.appendChild(rk); mid.appendChild(el('div', 'quiet', t('riskyHelp'))); }
       if (qq.scouting) { mid.appendChild(el('div', 'label', t('scoutReport'))); var sr = el('div'); sr.style.whiteSpace = 'pre-wrap'; sr.textContent = qq.scouting; mid.appendChild(sr); }
       if (qq.plan) { mid.appendChild(el('div', 'label', t('plan'))); var pl = el('div'); pl.style.whiteSpace = 'pre-wrap'; pl.textContent = qq.plan; mid.appendChild(pl); }
       if (qq.parts && qq.parts.length >= 2) { mid.appendChild(el('div', 'gold', t('split'))); qq.parts.forEach(function (p) { mid.appendChild(el('div', '', '• ' + p.name + (p.criteria.length ? '  [' + p.criteria.join(', ') + ']' : ''))); }); }
@@ -237,7 +238,8 @@
     // Formation: Relay by default; Pincer (two approaches, the better one wins) costs about twice as much.
     var hasParts = q.parts && q.parts.length >= 2;
     var formations = hasParts ? ['relay', 'pincer', 'siege'] : ['relay', 'pincer'];
-    var formation = hasParts ? 'siege' : 'relay';
+    var risky = !!(q.risk && q.risk.risky);
+    var formation = hasParts ? 'siege' : risky && G.state.party.length >= 2 ? 'pincer' : 'relay';
     var lostBefore = s.battles.some(function (x) { return x.quest === q.id && (x.outcome !== 'victory' || x.review === 'undone'); });
     var fRow = el('div'); fRow.style.cssText = 'margin-top:6px';
     var fLabel = el('div', 'quiet', t('formation')); right.appendChild(fLabel);
@@ -309,7 +311,7 @@
       G.cmd('plan', { id: q.id }).then(function (r) {
         return G.refresh().then(function () {
           var qq = G.quest(q.id); showPlan(qq);
-          if (r.verdict === 'split' && qq.parts.length) { G.go('warroom', { id: q.id }); return; } // reopen with the Siege ready
+          if ((r.verdict === 'split' && qq.parts.length) || (qq.risk && qq.risk.risky)) { G.go('warroom', { id: q.id }); return; } // reopen with the Siege or Pincer ready
           if (!qq.approved) G.toast(t('needsApproval'));
         });
       }).catch(function () { showPlan(q); });

@@ -62,7 +62,7 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
       level: e.level, status: e.status, budget: e.budget.gold ?? QUEST_TYPES[questTypeOf(e)].gold,
       hp: e.criteria.filter((k) => !k.met).length, maxHp: e.criteria.length, approved: e.approved !== false,
       questions: e.questions ?? [], source: e.source, request: e.request ?? e.description,
-      scouting: e.scouting ?? null, plan: e.plan ?? null, parts: e.parts ?? [],
+      scouting: e.scouting ?? null, plan: e.plan ?? null, parts: e.parts ?? [], risk: e.risk ?? null,
       conditions: e.criteria.map((k) => ({ id: k.id, text: k.description, met: k.met, proof: proofOf(k), check: k.check ?? null })),
     })),
     battles: w.battles.slice(-30).map((b) => ({
@@ -144,7 +144,7 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
       case "approve": return change(async (w) => {
         const q = quest(w);
         if (q.questions?.length) throw new Error("Answer its questions first.");
-        q.approved = true;
+        q.approved = true; if (q.risk?.risky) q.riskApproved = true;
         return { message: `Approved ${q.name}.` };
       });
       case "answer": return change(async (w) => { answer(quest(w), String(b.text ?? "").slice(0, 2000)); return { message: "Noted." }; });
@@ -155,7 +155,7 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
         return { message: `Written by ${r.by}.`, quest: r.quest.id, dropped: r.dropped.length };
       });
       case "plan": return change(async (w) => {
-        const r = await warRoom(w, store, quest(w), projectDir);
+        const r = await warRoom(w, store, quest(w), projectDir, undefined, council);
         return { message: r.verdict, ...r };
       });
       case "suggest": return serial(async () => {
