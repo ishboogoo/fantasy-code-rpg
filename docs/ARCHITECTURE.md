@@ -56,6 +56,7 @@ flowchart LR
 | `src/importers.ts` | GitHub Issues → quests through `gh`. | `gh` |
 | `src/play.ts` | The browser game's server: 127.0.0.1 + one-time key, secret-free state snapshot, live events over SSE, every in-game command through the engine's own functions (serialized; one battle at a time). | http |
 | `src/web/` | The browser game: `i18n.js` (English/Japanese), `ui.js` (stage, rain, API, events, sprites, menus), `town.js` (Guild Town painted from state), `scenes.js` (Title, Town, Counter, Board, War Room, Vault, Tavern, Inn, Library, Settings), `battle.js`. No framework, no build step. | browser |
+| `src/asks.ts` | Wait mode: questions from paused heroes as atomic files in `chronicle/asks/`, answered from the browser or the CLI; no answer in time means no. | files |
 | `src/roster.ts` | Recruiting heroes (shared by the CLI and the browser). | no |
 | `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |

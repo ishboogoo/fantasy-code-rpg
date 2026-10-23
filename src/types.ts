@@ -131,6 +131,8 @@ export interface Settings {
   offeredAdventurer?: boolean;
   /** Every word in the game's screens. Your heroes still work in whatever language you write to them. */
   language?: "en" | "ja";
+  /** How long a hero waits for your answer in Wait mode before taking "no" for an answer. Default 300 seconds. */
+  askTimeoutSec?: number;
 }
 
 export interface World {

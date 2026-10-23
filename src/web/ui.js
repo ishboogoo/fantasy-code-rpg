@@ -184,6 +184,7 @@
       if (e.key === 'Escape') e.target.blur();
       return;
     }
+    if (document.querySelector('[role=alertdialog]')) { if (activeMenu) activeMenu.key(e); return; }
     if (sceneKey && sceneKey(e)) return;
     if (activeMenu && activeMenu.key(e)) return;
     if ((e.key === 'Escape' || e.key === 'x' || e.key === 'X') && current !== 'title') { G.go(current === 'town' ? 'title' : 'town'); e.preventDefault(); }

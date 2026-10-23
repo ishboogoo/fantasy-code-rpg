@@ -90,14 +90,15 @@ export interface HookCommands { gate: string; stop: string }
 
 export function claudeHooks(c: HookCommands): Record<string, unknown> {
   return { hooks: {
-    PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: `${c.gate} --cli claude` }] }],
+    // Long timeouts: in Wait mode the hook holds the hero until you answer (or the ask timeout passes).
+    PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: `${c.gate} --cli claude`, timeout: 900 }] }],
     Stop: [{ hooks: [{ type: "command", command: `${c.stop} --cli claude`, timeout: 900 }] }],
   } };
 }
 
 export function geminiHooks(c: HookCommands): Record<string, unknown> {
   return { hooks: {
-    BeforeTool: [{ matcher: "*", hooks: [{ type: "command", command: `${c.gate} --cli gemini`, timeout: 10_000 }] }],
+    BeforeTool: [{ matcher: "*", hooks: [{ type: "command", command: `${c.gate} --cli gemini`, timeout: 900_000 }] }],
     AfterAgent: [{ matcher: "*", hooks: [{ type: "command", command: `${c.stop} --cli gemini`, timeout: 900_000 }] }],
   } };
 }
@@ -106,7 +107,7 @@ export function geminiHooks(c: HookCommands): Record<string, unknown> {
 export function codexHookArgs(c: HookCommands): string[] {
   const t = (s: string) => `'${s.replace(/'/g, "")}'`;
   return [
-    "-c", `hooks.PreToolUse=[{matcher=".*",hooks=[{type="command",command=${t(`${c.gate} --cli codex`)},timeout=30}]}]`,
+    "-c", `hooks.PreToolUse=[{matcher=".*",hooks=[{type="command",command=${t(`${c.gate} --cli codex`)},timeout=900}]}]`,
     "-c", `hooks.Stop=[{hooks=[{type="command",command=${t(`${c.stop} --cli codex`)},timeout=900}]}]`,
   ];
 }

@@ -436,4 +436,43 @@
       function (v) { G.pref('reduce', v); G.applyPrefs(); G.go('settings', params); });
     G.menu(w, [{ label: t('back'), action: function () { G.go(params.from === 'title' ? 'title' : 'town'); } }], { small: true });
   };
+
+  // ---------------- Decision window (Wait mode) ----------------
+  // Pops over whatever scene is open, because a hero is paused until you answer.
+  var askEl = null, askId = null;
+  G.closeAsk = function (id) { if (askEl && (!id || id === askId)) { askEl.remove(); askEl = null; askId = null; G.setMenu(null); } };
+  G.showAsk = function (a) {
+    if (!a || askId === a.id) return;
+    G.closeAsk();
+    var c = G.hero(a.hero) || { id: a.hero, name: a.hero, job: 'fighter', tier: 0, adapter: 'mock', status: [] };
+    var shade = el('div'); shade.style.cssText = 'position:absolute;inset:0;background:rgba(2,8,6,.6);z-index:40';
+    var w = el('div', 'win'); w.style.cssText = 'left:216px;top:66px;width:720px;z-index:41;display:flex;flex-direction:column;gap:10px';
+    w.setAttribute('role', 'alertdialog'); w.setAttribute('aria-label', t('asks', { who: c.name }));
+    var head = el('div'); head.style.cssText = 'display:flex;gap:14px;align-items:center';
+    head.appendChild(G.portraitCanvas(c));
+    var h = el('div', 'h1 gold', '🛡 ' + t('asks', { who: c.name })); head.appendChild(h); w.appendChild(head);
+    var what = t('needs.' + a.need) || a.needWords;
+    w.appendChild(el('div', 'h1', t('askLine', { who: c.name, what: what })));
+    var tgt = el('div', 'label', a.target); tgt.style.cssText = 'font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'; w.appendChild(tgt);
+    var help = el('div', 'quiet'); w.appendChild(help);
+    var items = [
+      { label: t('allowOnce'), help: t('allowHelp'), action: function () { answer('allow'); } },
+      { label: t('deny'), help: t('denyHelp', { who: c.name }), action: function () { answer('deny'); } },
+    ];
+    (a.helpers || []).slice(0, 2).forEach(function (hp) {
+      items.push({ label: t('handTo', { name: hp.name }), help: t('handHelp', { name: hp.name }), action: function () { answer('handoff', hp.id); } });
+    });
+    if (!(a.helpers || []).length) items.push({ label: t('handTo', { name: '…' }), disabled: true, help: t('nobodyCan'), action: function () {} });
+    var m = G.menu(w, items);
+    // Show what the highlighted choice will do.
+    function explain() { var i = [].indexOf.call(m.el.children, m.el.querySelector('.sel')); help.textContent = (items[i] || items[0]).help; }
+    m.el.addEventListener('mousemove', explain); var k = m.key; m.key = function (e) { var r = k(e); explain(); return r; }; explain();
+    var mins = Math.round(((G.state.settings && G.state.settings.askTimeoutSec) || 300) / 60);
+    w.appendChild(el('div', 'quiet', t('askWait', { m: mins })));
+    function answer(decision, to) {
+      G.cmd('decide', { id: a.id, decision: decision, to: to }).then(function (r) { G.toast(r.message); G.closeAsk(a.id); }).catch(function () { G.closeAsk(a.id); });
+    }
+    askEl = el('div'); askEl.appendChild(shade); askEl.appendChild(w); G.stage.appendChild(askEl); askId = a.id;
+    G.setMenu(m);
+  };
 })();

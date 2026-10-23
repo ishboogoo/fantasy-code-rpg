@@ -19,6 +19,7 @@ import { checkParty, recommendParty, vendor, type Role } from "./party.ts";
 import { recruit } from "./roster.ts";
 import { runProcess } from "./adapters/adapter.ts";
 import { refillMp } from "./economy.ts";
+import { AskBook, NEED_WORDS } from "./asks.ts";
 import type { AdapterKind, JobLine, World } from "./types.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -69,6 +70,8 @@ export function snapshot(store: Store, council: Council, extra: Record<string, u
       promotions: b.promotions, curses: b.curses,
     })),
     council: council.accuracy(),
+    asks: new AskBook(store.chronicleDir).waiting().map((a) => ({ ...a, needWords: NEED_WORDS[a.need],
+      helpers: w.party.filter((c) => c.id !== a.hero && permissionsFor(c.tier)[a.need]).map((c) => ({ id: c.id, name: c.name })) })),
     lore: store.lore().split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2)).slice(-12),
   };
 }
@@ -121,6 +124,20 @@ export function startPlay(projectDir: string, port = 0): Promise<PlayServer> {
     const id = String(b.id ?? "");
     const quest = (w: World) => { const q = w.enemies.find((e) => e.id === id); if (!q) throw new Error("No such quest."); return q; };
     switch (b.cmd) {
+      // Answering a waiting hero never touches the world file, so it works while a battle runs.
+      case "decide": {
+        const book = new AskBook(store.chronicleDir);
+        const a = book.get(id);
+        if (!a) throw new Error("No such question.");
+        const decision = String(b.decision);
+        if (decision !== "allow" && decision !== "deny" && decision !== "handoff") throw new Error("Answer allow, deny or handoff.");
+        if (decision === "handoff") {
+          const to = store.load().party.find((c) => c.id === String(b.to ?? ""));
+          if (!to || !permissionsFor(to.tier)[a.need]) throw new Error("That hero isn't allowed to do it either.");
+        }
+        book.decide(id, decision, decision === "handoff" ? String(b.to) : undefined);
+        return { message: decision === "allow" ? "Allowed, just this once." : decision === "deny" ? "Denied." : "Handed over." };
+      }
       case "keep": return { message: await change((w) => keepBattle(w, store, id, projectDir)) };
       case "undo": return { message: await change((w) => undoBattle(w, store, id, projectDir, council)) };
       case "approve": return change(async (w) => {

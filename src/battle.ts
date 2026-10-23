@@ -15,6 +15,7 @@ import { proofOf, questTypeOf } from "./quests.ts";
 import { lastJson } from "./stages.ts";
 import { vendor } from "./party.ts";
 import type { Council } from "./council.ts";
+import { AskBook, NEED_WORDS } from "./asks.ts";
 import { existsSync as exists, readdirSync, rmSync } from "node:fs";
 import { join as joinPath } from "node:path";
 
@@ -209,6 +210,7 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
   if (isolate) inst = await createInstance(cwd, battleId);
   const workdir = inst?.path ?? cwd;
   const metBefore = new Set(enemy.criteria.filter((k) => k.met).map((k) => k.id));
+  const startedAt = new Date().toISOString();
   resetStopCounters(store.root, enemy.id);
   const hpLeft = () => enemy.criteria.filter((k) => !k.met).length;
   emit({ type: "battle_start", quest: { id: enemy.id, name: enemy.name, kind: enemy.kind, questType: questTypeOf(enemy), level: enemy.level, hp: hpLeft(), maxHp: enemy.criteria.length },
@@ -244,6 +246,17 @@ export async function battle(opts: BattleOptions): Promise<BattleReport> {
     }
     if (r.violation) { critical = `${c.name} ${r.violation}`; say(`  ⚠️  ${critical}`); break; }
     if (r.error) say(`  ✖ ${r.error}`);
+    // Wait mode: if you handed this hero's job to someone else, they take the next turn.
+    for (const a of new AskBook(store.chronicleDir).all()) {
+      if (a.hero !== c.id || a.quest !== enemy.id || a.decision !== "handoff" || !a.to || a.at < startedAt) continue;
+      const next = world.party.find((x) => x.id === a.to);
+      if (next && !party.includes(next) && party.length < 4) {
+        refillMp(next);
+        party.push(next);
+        say(`  🤝 ${c.name} hands the job to ${next.name}.`);
+        store.writeScroll(enemy.id, "Guild Master", `${c.name} needed to ${NEED_WORDS[a.need]} (${a.target}). ${next.name} takes over; read ${c.name}'s notes above.`);
+      }
+    }
   }
 
   const verdict = await judgeBattle(opts, enemy, party, workdir, inst);

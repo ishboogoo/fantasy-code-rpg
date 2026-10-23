@@ -67,6 +67,8 @@
         var h = G.hero(e.hero), who = h ? h.name : e.hero;
         if (e.allowed === false) { flash(t('blocks', { who: who })); say('🛡 ' + who + ': ' + (e.reason || ''), 'gold'); return; }
         var line = G.say(who, e.move, e.target); flash(line); say(line);
+      } else if (e.type === 'ask') {
+        var ah = G.hero(e.hero); flash('🛡 ' + t('asks', { who: ah ? ah.name : e.hero })); drawHeroes(e.hero);
       } else if (e.type === 'save_point') {
         say('💾 ' + t('savePoint') + ' ' + e.sha, 'label');
       } else if (e.type === 'verdict') {

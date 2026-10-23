@@ -15,6 +15,7 @@ import { newCharacter, recruit } from "./roster.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { importGithub } from "./importers.ts";
+import { AskBook, NEED_WORDS } from "./asks.ts";
 import { decideTool, moveFor, denyOutput, keepGoingOutput, stopGate, type HookCli } from "./hooks.ts";
 import { permissionsFor, recordFor, reliability, title } from "./rules.ts";
 import { dirname } from "node:path";
@@ -47,6 +48,8 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint keep <battle-id>                   Treasure Vault: bring a battle's changes into your project
   savepoint undo <battle-id>                   Treasure Vault: throw a battle's changes away (counts as a loss)
   savepoint council                            How each Council seat has decided, and how often it was right
+  savepoint asks                               Heroes waiting for your answer (Wait mode)
+  savepoint allow|deny <id> · handoff <id> <hero>  Answer them: allow once, deny, or hand the job to another hero
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
@@ -282,6 +285,28 @@ async function main(): Promise<void> {
       console.log(box("THE COUNCIL", ["kind        seat    record", ...lines]));
       return;
     }
+    case "asks": {
+      const waiting = new AskBook(store.chronicleDir).waiting();
+      if (!waiting.length) { console.log("No hero is waiting for you."); return; }
+      for (const a of waiting) console.log(`? ${a.id} · ${world.party.find((c) => c.id === a.hero)?.name ?? a.hero} wants to ${NEED_WORDS[a.need]}: ${a.target}\n    savepoint allow ${a.id} · savepoint deny ${a.id} · savepoint handoff ${a.id} <hero>`);
+      return;
+    }
+    case "allow": case "deny": case "handoff": {
+      if (!rest[0]) throw new Error(`Usage: ${cmd} <question-id>${cmd === "handoff" ? " <hero>" : ""}`);
+      const book = new AskBook(store.chronicleDir);
+      const a = book.get(rest[0]);
+      if (cmd === "handoff") {
+        const to = world.party.find((c) => c.id === rest[1] || c.name.toLowerCase() === (rest[1] ?? "").toLowerCase());
+        if (!to) throw new Error("Usage: handoff <question-id> <hero>");
+        if (a && !permissionsFor(to.tier)[a.need]) throw new Error(`${to.name} isn't allowed to ${NEED_WORDS[a.need]} either.`);
+        book.decide(rest[0], "handoff", to.id);
+        console.log(`🤝 ${to.name} takes over after this turn.`);
+      } else {
+        book.decide(rest[0], cmd);
+        console.log(cmd === "allow" ? "✅ Allowed, just this once. It's logged and doesn't affect anyone's trust." : "🛡 Denied. The hero will describe the change instead.");
+      }
+      return;
+    }
     case "lore": store.addLore(rest.join(" ")); console.log("📜 Written into the Chronicle."); return;
     case "fund": world.treasury.gold += Number(rest[0] ?? 0); save(); console.log(`💰 Treasury now holds ${world.treasury.gold - world.treasury.spent} G`); return;
     default: console.log(HELP);
@@ -343,9 +368,27 @@ async function gate(): Promise<void> {
   const decision = c ? decideTool(cli, tool, event.tool_input ?? {}, permissionsFor(c.tier))
     : { allow: false, reason: `Unknown character ${id}.` };
   const m = moveFor(cli, tool, event.tool_input ?? {});
-  s.event({ type: "action", hero: id, quest: process.env.SAVEPOINT_QUEST, move: m.move, target: m.target, allowed: decision.allow,
-    reason: decision.allow ? undefined : decision.reason });
-  if (decision.allow) return;
+  const quest = process.env.SAVEPOINT_QUEST || undefined;
+  if (decision.allow) {
+    s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: true });
+    return;
+  }
+  // Above its rank (not forbidden): pause and ask the Guild Master. Forbidden actions are never asked about.
+  if (c && decision.need) {
+    const book = new AskBook(s.chronicleDir);
+    const ask = book.create({ hero: id, quest, tool, move: m.move, target: m.target, need: decision.need, reason: decision.reason });
+    s.event({ type: "ask", ask: ask.id, hero: id, quest, move: m.move, target: m.target, need: decision.need, needWords: NEED_WORDS[decision.need] });
+    const timeoutMs = (s.load().settings?.askTimeoutSec ?? 300) * 1000;
+    const answer = await book.wait(ask.id, timeoutMs);
+    s.event({ type: "answer", ask: ask.id, hero: id, decision: answer.decision, to: answer.to, expired: answer.status === "expired" });
+    if (answer.decision === "allow") return;
+    const why = answer.status === "expired" ? "The Guild Master didn't answer in time, so the answer is no."
+      : answer.decision === "handoff" ? `The Guild Master handed this to ${answer.to}. Write down what you'd do in your notes for them, then finish your part.`
+      : "The Guild Master said no.";
+    console.log(denyOutput(cli, `${decision.reason} ${why} Describe the change you wanted in your reply instead.`));
+    return;
+  }
+  s.event({ type: "action", hero: id, quest, move: m.move, target: m.target, allowed: false, reason: decision.reason });
   s.recordViolation(id, tool, decision.reason);
   console.log(denyOutput(cli, decision.reason));
 }
@@ -416,7 +459,7 @@ async function play(): Promise<void> {
   const { startPlay } = await import("./play.ts");
   const server = await startPlay(dir, Number(values.port ?? 4747));
   console.log(box("FANTASY CODE RPG", ["Open this link in your browser (it only works on this computer):", server.url,
-    "Q: Quest Board · V: Treasure Vault · Ctrl+C to quit"]));
+    "Ctrl+C to quit", ...(values.demo ? [`Practice guild folder: ${dir}`] : [])]));
 }
 
 /** A self-contained simulated campaign, so anyone can see the mechanics in 5 seconds. */

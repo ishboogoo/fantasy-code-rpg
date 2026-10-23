@@ -95,7 +95,7 @@ Every task is an enemy. Its **type** determines which jobs have the advantage.
 - **Victory** — all HP depleted
 - **Retreat** — partial; some criteria met, character gave up or ran out of turns
 - **Defeat** — nothing met, or something broke
-- **Critical failure** — broke existing tests, overspent, or tried an action above its tier
+- **Critical failure** — broke existing tests, overspent, or tried a forbidden action. (Trying something merely above its rank pauses the hero and asks you instead: Wait mode. Asking is never a failure.)
 
 Type advantage exists to make **routing** part of the game: sending the Bard to fight a Wyvern still works, but the right class earns more.
 
@@ -188,4 +188,4 @@ CLIs read it as files (`.savepoint/chronicle/`) and, on the roadmap, through an 
 
 ## 11. Save Points
 
-Before every battle, the harness creates a save point: a git ref plus a Chronicle snapshot. Defeat or critical failure? Load the save. This is what makes it safe to give agents more agency over time.
+Every battle runs in its own copy of the project, with a save point after each hero's turn. Defeat or critical failure? The copy is thrown away; your folder never saw it. This is what makes it safe to give agents more agency over time.
