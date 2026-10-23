@@ -54,7 +54,9 @@ flowchart LR
 | `src/ledger.ts` | Win records per quest type × hero, from battle reports. | no — pure |
 | `src/hooks.ts` | One rulebook for three CLIs: tool-name translation, reply formats, the "no proof, no victory" stop gate, hook settings for Claude Code, Codex and Gemini CLI. | checks run on stop |
 | `src/importers.ts` | GitHub Issues → quests through `gh`. | `gh` |
-| `src/play.ts`, `src/play.html` | The browser game: local server (127.0.0.1 + one-time key), state snapshot without secrets, live events over SSE, Keep / Undo / Approve; the page draws sprites with `assets/generators`. | http |
+| `src/play.ts` | The browser game's server: 127.0.0.1 + one-time key, secret-free state snapshot, live events over SSE, every in-game command through the engine's own functions (serialized; one battle at a time). | http |
+| `src/web/` | The browser game: `i18n.js` (English/Japanese), `ui.js` (stage, rain, API, events, sprites, menus), `town.js` (Guild Town painted from state), `scenes.js` (Title, Town, Counter, Board, War Room, Vault, Tavern, Inn, Library, Settings), `battle.js`. No framework, no build step. | browser |
+| `src/roster.ts` | Recruiting heroes (shared by the CLI and the browser). | no |
 | `src/stages.ts` | Guild Counter (the Clerk), War Room (Scout, Planner), play-style settings. Desk jobs run read-only. | via adapters |
 | `src/party.ts` | Recommended party and plain-language warnings; the lead is a Council decision. | via council |
 | `src/instance.ts` | A git worktree per battle, save point commits, Keep (merge) and Undo (discard). | git |

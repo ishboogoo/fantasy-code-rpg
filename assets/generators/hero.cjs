@@ -88,8 +88,10 @@ function hero2(pr) {
   if (race === 'dwarf') hair = pick([P.ember, P.earth, P.steel, P.gold]);
   var robe = pick([P.arcane, P.ocean]);
   var white = [P.steel[0], P.steel[1], P.steel[2], P.steel[3]];
-  var outfit = tier === 0 ? P.earth : ({ fighter: P.steel, mage: robe, cleric: white, thief: P.forest, bard: P.ember })[job];
-  var under = tier === 0 ? P.earth : ({ fighter: P.night, mage: P.ink, cleric: P.night, thief: P.ink, bard: P.night })[job];
+  // Novices wear a plain undyed tunic in grey-green, so they never read as bare skin.
+  var novice = ['#26342a', '#46584a', '#748a7a', '#b4c4b8'];
+  var outfit = tier === 0 ? novice : ({ fighter: P.steel, mage: robe, cleric: white, thief: P.forest, bard: P.ember })[job];
+  var under = tier === 0 ? ['#141e18', '#26342a', '#46584a', '#748a7a'] : ({ fighter: P.night, mage: P.ink, cleric: P.night, thief: P.ink, bard: P.night })[job];
   var cape = job === 'bard' ? P.ember : elem;
   var hasCape = tier >= 3 || job === 'bard' || job === 'fighter' && tier >= 2;
   var robed = tier > 0 && (job === 'mage' || job === 'cleric');

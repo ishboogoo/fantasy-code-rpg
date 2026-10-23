@@ -129,6 +129,8 @@ export interface Settings {
   playStyle: PlayStyle;
   /** Set once the game has offered to move you from Story to Adventurer, so it only asks once. */
   offeredAdventurer?: boolean;
+  /** Every word in the game's screens. Your heroes still work in whatever language you write to them. */
+  language?: "en" | "ja";
 }
 
 export interface World {

@@ -11,6 +11,7 @@ import { Council } from "./council.ts";
 import { QUEST_TYPES, classifyByRules, proofOf, questTypeOf } from "./quests.ts";
 import { adventurerOffer, answer, needsApproval, request, setPlayStyle, settings, warRoom } from "./stages.ts";
 import { recommendParty, checkParty, type Role } from "./party.ts";
+import { newCharacter, recruit } from "./roster.ts";
 import { ADAPTERS } from "./adapters/index.ts";
 import { JOB_TITLES } from "./rules.ts";
 import { importGithub } from "./importers.ts";
@@ -49,7 +50,7 @@ SAVEPOINT — a 90s-RPG harness for AI agent teams
   savepoint lore "<fact>"                      Add shared knowledge to the Chronicle
   savepoint fund <gold>                        Add gold to the treasury
   savepoint demo [--battles 40]                Simulated campaign with mock characters
-  savepoint play [--port 4747] [--demo]        The game in your browser (local only). --demo stages a simulated battle
+  savepoint play [--port 4747] [--demo]        The game in your browser (local only). --demo: a practice guild with simulated heroes
   savepoint gate --cli claude|codex|gemini     Before-tool hook: one rulebook for all three CLIs (installed automatically)
   savepoint stop-gate --cli claude|codex|gemini  Stop hook: no proof, no victory (installed automatically)
   savepoint statusline                         One-line HUD for Claude Code's status line
@@ -81,12 +82,6 @@ const store = new Store(cwd);
 const council = new Council(store.chronicleDir);
 const [cmd, ...rest] = positionals;
 
-function newCharacter(name: string, adapter: AdapterKind, job: JobLine, extra: Partial<Character> = {}): Character {
-  return {
-    id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name, adapter, job,
-    tier: 0, level: 1, xp: 0, totalXp: 0, records: {}, status: [], recruitedAt: new Date().toISOString(), ...extra,
-  };
-}
 
 function parseCriteria(list: string[] = [], checks: string[] = []): Enemy["criteria"] {
   const checkMap = new Map(checks.map((c) => [c.slice(0, c.indexOf("=")), c.slice(c.indexOf("=") + 1)]));
@@ -127,12 +122,10 @@ async function main(): Promise<void> {
       if (values.cmd) config.command = values.cmd;
       if (values["base-url"]) config.baseUrl = values["base-url"];
       if (values.skill) config.skill = values.skill;
-      const c = newCharacter(name, adapter, job, {
+      const c = recruit(world, name, adapter, job, {
         model: values.model, adapterConfig: config,
         mp: values.mp ? { max: Number(values.mp), current: Number(values.mp), refillHours: Number(values.refill ?? 5), lastRefill: new Date().toISOString() } : undefined,
       });
-      if (world.party.some((x) => x.id === c.id)) throw new Error(`${c.id} is already in the party.`);
-      world.party.push(c);
       save();
       console.log(box("TAVERN", [`${name} joins the party!`, characterLine(c), `Enforcement: ${ADAPTERS[adapter].enforcement}`]));
       return;
@@ -400,32 +393,30 @@ async function play(): Promise<void> {
     const w = s.load();
     w.treasury.gold = 20;
     w.party.push(
-      newCharacter("Aria", "mock", "fighter", { tier: 1, adapterConfig: { skill: "0.95", seed: "play", pace: "700" }, look: { race: "human", build: "feminine" } }),
-      newCharacter("Rook", "mock", "thief", { tier: 1, adapterConfig: { skill: "0.8", seed: "play", pace: "700" }, look: { race: "beastkin", build: "masculine" } }),
+      newCharacter("Aria", "mock", "fighter", { tier: 1, adapterConfig: { skill: "0.95", seed: "play", pace: "700" }, look: { race: "human", build: "feminine" },
+        mp: { max: 100, current: 64, refillHours: 5, lastRefill: new Date().toISOString() } }),
+      newCharacter("Rook", "mock", "thief", { tier: 1, adapterConfig: { skill: "0.8", seed: "play", pace: "700" }, look: { race: "beastkin", build: "masculine" },
+        mp: { max: 60, current: 60, refillHours: 5, lastRefill: new Date().toISOString() } }),
       newCharacter("Mira", "mock", "mage", { tier: 1, adapterConfig: { skill: "0.9", seed: "play", pace: "700" }, look: { race: "elf", build: "feminine" } }),
       newCharacter("Cass", "mock", "cleric", { tier: 1, adapterConfig: { skill: "0.9", seed: "play", pace: "700" }, look: { race: "fae", build: "feminine" } }),
     );
+    // A few quests waiting on the board, so there is something to do straight away.
+    const demoQuests: Array<[string, string, Enemy["kind"], QuestType]> = [
+      ["q1", "Login page crashes on empty email", "goblin", "fix"],
+      ["q2", "Checkout fails for some users", "lich", "fix"],
+      ["q3", "Update the setup guide", "mimic", "write"],
+    ];
+    for (const [id, name, kind, questType] of demoQuests) {
+      w.enemies.push({ id, name, kind, questType, level: 2, description: name, request: name, status: "lurking", budget: { gold: 1, maxTurns: 6 }, approved: true,
+        criteria: [{ id: "works", description: "It works", proof: "judge", met: false }, { id: "tests", description: "Tests cover it", proof: "judge", met: false },
+          { id: "looks", description: "It looks right to you", proof: "human", met: false }] });
+    }
     s.save(w);
   } else if (!store.exists()) throw new Error("No world here. Run `savepoint init` first, or try `savepoint play --demo`.");
   const { startPlay } = await import("./play.ts");
   const server = await startPlay(dir, Number(values.port ?? 4747));
   console.log(box("FANTASY CODE RPG", ["Open this link in your browser (it only works on this computer):", server.url,
     "Q: Quest Board · V: Treasure Vault · Ctrl+C to quit"]));
-  if (!values.demo) return;
-  const s = new Store(dir);
-  const council = new Council(s.chronicleDir);
-  const quests: Array<[string, Enemy["kind"]]> = [["Login page crashes on empty email", "goblin"], ["Checkout fails for some users", "lich"], ["Update the setup guide", "mimic"]];
-  await new Promise((r) => setTimeout(r, 4000));
-  for (const [i, [name, kind]] of quests.entries()) {
-    const w = s.load();
-    const id = `q${i + 1}`;
-    w.enemies.push({ id, name, kind, level: 2 + i, description: name, status: "lurking", budget: { gold: 1, maxTurns: 6 },
-      criteria: [{ id: "works", description: "It works", met: false }, { id: "tests", description: "Tests cover it", met: false }, { id: "looks", description: "It looks right", proof: "human", met: false }] });
-    const plan = recommendParty(w, w.enemies.at(-1)!, 3, council);
-    await battle({ world: w, store: s, enemyId: id, partyIds: plan.members.filter((m) => m.role !== "judge").map((m) => m.id), judge: { kind: "auto" }, cwd: dir, council });
-    s.save(w);
-    await new Promise((r) => setTimeout(r, 9000));
-  }
 }
 
 /** A self-contained simulated campaign, so anyone can see the mechanics in 5 seconds. */

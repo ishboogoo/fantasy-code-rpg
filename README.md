@@ -38,9 +38,12 @@ The demo runs 40 simulated battles. One fighter is reliable, one is sloppy, and 
 ## See it in your browser
 
 ```bash
-node src/cli.ts play --demo   # a simulated party fights three quests; open the link it prints
+node src/cli.ts play --demo   # a practice guild with simulated heroes; open the link it prints
 ```
 
+Walk around Guild Town, ask the Clerk for a quest, plan it in the War Room, send the party out, and keep or undo the result at the Treasure Vault. English and Japanese.
+
+![Guild Town](assets/brand/town.png)
 ![The battle screen](assets/brand/battle.png)
 
 ## Play for real
@@ -99,7 +102,7 @@ Design plan: **[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md)** · Decisions: **[doc
 
 ## Status
 
-**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the first browser screen (`savepoint play`). 43 tests.
+**v0.2 in progress.** Playable core (rules, Chronicle, battle loop, judge, Gatekeeper, 7 adapters, terminal UI) plus the Guild Counter (the Clerk writes quests), the War Room (scout and plan), play styles, quest types, the Council's first two seats, fair cross-company judging, recommended parties, and battles in private copies with save points, Keep and Undo. one Gatekeeper enforced across Claude Code, Codex and Gemini CLI, a "no proof, no victory" stop hook, GitHub Issues import, and the launch scenes in the browser (`savepoint play`). 44 tests.
 CLI flag mappings for Claude Code / Codex / Gemini CLI are marked `VERIFY` and need community testing.
 
 ## Join the guild
