@@ -1,6 +1,6 @@
 # Roadmap — the World Map
 
-Quests are sized like enemies. 🟢 Slimes are perfect first PRs.
+Quests are sized like enemies. 🟢 Slimes are perfect first PRs: see the [good first issues](https://github.com/ishboogoo/fantasy-code-rpg/contribute). Progress on each Act is tracked in the [milestones](https://github.com/ishboogoo/fantasy-code-rpg/milestones).
 
 ## Act I — "Leaving the Village" (v0.1 ✅ done, not published)
 

@@ -8,3 +8,8 @@ updates:
     directory: /
     schedule: { interval: monthly }
     # Dev tools only (TypeScript, Node types); the game has no runtime dependencies.
+    ignore:
+      # Node's type definitions stay on the oldest Node the game supports (22), so code can't
+      # quietly use something newer Node versions added.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]

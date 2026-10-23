@@ -4,6 +4,10 @@ All notable changes, newest first. Versions follow [Semantic Versioning](https:/
 
 ## [Unreleased]
 
+### Changed
+- Screenshots and hero cards carry the community hashtag **#fcrpg**, and the save message suggests sharing with it.
+- README: badges, a demo GIF of a whole quest, and a guide to joining (good first issues, milestones, Discussions).
+
 ### Fixed
 - In a Siege, a hero whose part changed nothing no longer earns proof on their card.
 
